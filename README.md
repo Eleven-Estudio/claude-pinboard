@@ -122,8 +122,7 @@ claude plugin test .
 claude --plugin-dir .
 ```
 
-See [CONTRIBUTING](CONTRIBUTING.md) for the typecheck and commit style, and
-[demo/](demo/README.md) to record a demo in a clean, isolated session.
+See [CONTRIBUTING](CONTRIBUTING.md) for the typecheck and commit style.
 
 ## License
 
