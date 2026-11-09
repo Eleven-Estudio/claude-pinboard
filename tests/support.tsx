@@ -28,30 +28,40 @@ export const USAGE = {
 export type Saved = { pins: { title: string; body: string }[] }
 
 // Nothing sits beneath the plugin: these hooks stand for the engine. The
-// plugin's store is a Map the test reads back, standing for the file on disk;
-// `store.isBroken` makes every write throw, as a full disk does.
+// plugin's store is a Map the test reads back, standing for the file on disk.
+// A write throws, as a full disk does, when `store.isBroken` is set, when its
+// key matches `store.failKey`, or once `store.writesLeft` writes have gone through.
 export function engine(on: On, stored: Record<string, unknown> = {}) {
   const disk = new Map<string, unknown>(Object.entries(stored))
   const toasts: string[] = []
-  const store = { isBroken: false }
-  const guard = () => {
-    if (store.isBroken) throw new Error('disk full')
+  const store: { isBroken: boolean; failKey: RegExp | null; writesLeft: number | null } = {
+    isBroken: false,
+    failKey: null,
+    writesLeft: null,
+  }
+  let closed = 0
+  const guard = (key: string) => {
+    if (store.isBroken || store.failKey?.test(key) === true || store.writesLeft === 0) {
+      throw new Error('disk full')
+    }
+    if (store.writesLeft !== null) store.writesLeft -= 1
   }
   on('store.get', (_, e) => ({ value: disk.get(e.key) }))
-  on('store.set', (_, e) => (guard(), disk.set(e.key, e.value), { value: undefined }))
-  on('store.delete', (_, e) => (guard(), disk.delete(e.key), { value: undefined }))
+  on('store.set', (_, e) => (guard(e.key), disk.set(e.key, e.value), { value: undefined }))
+  on('store.delete', (_, e) => (guard(e.key), disk.delete(e.key), { value: undefined }))
   on('store.keys', () => ({ value: [...disk.keys()] }))
   on('command.register', (_, e) => ({ value: { command: e.name } }))
   on('tool.register', (_, e) => ({ value: { tool: `mcp__pinboard__${e.name}` } }))
   on('ui.open', () => ({ value: { isPlaced: true } }))
   on('ui.panes', () => ({ value: [] }))
-  on('ui.close', () => ({ value: undefined }))
+  on('ui.close', () => (closed++, { value: undefined }))
   on('ui.toast', (_, e) => (toasts.push(e.text), { value: undefined }))
   on('session.id', () => ({ value: 's1' }))
   on('session.root', () => ({ value: '/work/shop' }))
   on('session.start', (_, e) => ({ cwd: e.cwd }))
+  on('session.end', () => ({ sessionId: 's1' }))
 
-  return { disk, toasts, store }
+  return { disk, toasts, store, panesClosed: () => closed }
 }
 
 // Stands for the engine drawing a reply block itself.

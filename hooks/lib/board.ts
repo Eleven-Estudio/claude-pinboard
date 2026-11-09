@@ -69,17 +69,35 @@ export async function openPane($: EngineInterface): Promise<boolean> {
   return opened.isPlaced
 }
 
+// Everything that reads or writes the boards runs one task at a time, so a
+// change never starts from a list that a load has not finished replacing, and
+// two quick presses both land.
+let queue: Promise<unknown> = Promise.resolve()
+
+function enqueue<T>(task: () => Promise<T>): Promise<T> {
+  const run = queue.then(task)
+  queue = run.catch(() => undefined)
+
+  return run
+}
+
 // Loads the boards of the session and project in force when they are not
 // the ones in $.state: at start, after a /clear or /resume, after a reload.
-export async function sync($: EngineInterface): Promise<void> {
+export function sync($: EngineInterface): Promise<void> {
+  return enqueue(() => syncNow($))
+}
+
+// For code already running in the queue.
+async function syncNow($: EngineInterface): Promise<void> {
   const [id, root] = await Promise.all([$.session.id(), $.session.root()])
   if (loaded.session === id && loaded.project === root) return
   const [sessionPins, projectPins] = await Promise.all([
     loadSaved($, sessionKey(id), 'session'),
     loadSaved($, projectKey(root), 'project'),
   ])
-  loaded = { session: id, project: root }
   await updatePins($, () => [...sessionPins, ...projectPins])
+  // Only now do the pins in $.state match these keys.
+  loaded = { session: id, project: root }
 
   if (sessionPins.length + projectPins.length > 0) {
     const isUp = (await $.ui.panes()).some(pane => pane.id === PANE)
@@ -97,18 +115,22 @@ async function pruneStaleSessions($: EngineInterface, currentId: string): Promis
 }
 
 // Session start: read both boards again, then drop old session boards.
-export async function startBoards($: EngineInterface): Promise<void> {
-  loaded = { session: '', project: '' }
-  await sync($)
-  await pruneStaleSessions($, loaded.session)
+export function startBoards($: EngineInterface): Promise<void> {
+  return enqueue(async () => {
+    loaded = { session: '', project: '' }
+    await syncNow($)
+    await pruneStaleSessions($, loaded.session)
+  })
 }
 
 // After a /clear or a resume the process goes on under another session id:
 // drop this session's pins from $.state (they stay on disk with it) and let
 // the next sync load the new ones.
-export async function forgetSession($: EngineInterface): Promise<void> {
-  loaded = { session: '', project: '' }
-  await updatePins($, list => byScope(list, 'project'))
+export function forgetSession($: EngineInterface): Promise<void> {
+  return enqueue(async () => {
+    loaded = { session: '', project: '' }
+    await updatePins($, list => byScope(list, 'project'))
+  })
 }
 
 function isSameBoard(before: readonly Pin[], after: readonly Pin[]): boolean {
@@ -128,30 +150,45 @@ async function persist($: EngineInterface, current: readonly Pin[], next: readon
       written.push({ scope, before })
     }
   } catch (error) {
+    let isRestored = true
     for (const { scope, before } of written) {
-      await save($, boardKey(scope), before).catch(() => undefined)
+      await save($, boardKey(scope), before).catch(() => {
+        isRestored = false
+      })
     }
-    throw new BoardError(`The pins could not be saved (${failure(error)}). Nothing was changed.`)
+    if (isRestored) {
+      throw new BoardError(`The pins could not be saved (${failure(error)}). Nothing was changed.`)
+    }
+    // The store may hold half of the change: read it again at the next sync.
+    loaded = { session: '', project: '' }
+    throw new BoardError(
+      `The pins could not be saved (${failure(error)}), and a board on disk may differ from the pane. The pins will reload from disk.`,
+    )
   }
 }
-
-// Changes run one at a time, so two quick presses both land.
-let queue: Promise<unknown> = Promise.resolve()
 
 // Every change goes through here: the right boards loaded, the change made,
 // the boards written to disk, and only then $.state updated. When the write
 // fails this throws and $.state is left as it was.
 export function mutate($: EngineInterface, change: (list: readonly Pin[]) => Pin[]): Promise<void> {
-  const run = queue.then(async () => {
-    await sync($)
+  return enqueue(async () => {
+    await syncNow($)
     const current = await readPins($)
     const next = change(current)
     await persist($, current, next)
     await updatePins($, () => next)
+    await closePaneWhenEmpty($)
   })
-  queue = run.catch(() => undefined)
+}
 
-  return run
+// No pins left, no pane to keep open. Closing is a courtesy: a failure to
+// close never undoes a change that was saved.
+async function closePaneWhenEmpty($: EngineInterface): Promise<void> {
+  try {
+    if ((await readPins($)).length === 0) await $.ui.close({ id: PANE })
+  } catch {
+    // The pane stays until the person closes it.
+  }
 }
 
 export type PinRequest = {
@@ -203,7 +240,7 @@ export async function addPin(
 }
 
 function newId(): string {
-  return `${Date.now().toString(36)}${Math.floor(Math.random() * 1e4).toString(36)}`
+  return crypto.randomUUID()
 }
 
 // Off the caller's dispatch, on a timer: the pin shows at once, and its

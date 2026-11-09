@@ -6,10 +6,12 @@ import {
   START,
   USAGE,
   engine,
+  LIST_CALL,
   pinCall,
   pinOf,
   reply,
   type Saved,
+  unpinCall,
 } from '../support'
 
 test('both boards come back from disk when the session starts again', async ($, on) => {
@@ -114,4 +116,70 @@ test('a pin holds at most 20,000 characters', async ($, on) => {
 
   const fits = await $.tool.call(pinCall('Fits', 'x'.repeat(20_000)))
   expect(String(fits.result)).toContain('Pinned "Fits"')
+})
+
+test('pins stored for the session survive a change made while they reload', async ($, on) => {
+  const { disk } = engine(on, {
+    'session:s1': { pins: [pinOf('Old', 'kept')], updatedAt: Date.now() },
+  })
+  // Holds the next write to $.state, as a busy engine would.
+  let release = () => {}
+  let gate: Promise<void> | null = null
+  on('state.set', async (_, e, next) => {
+    const held = gate
+    gate = null
+    await held
+    return next(e)
+  })
+  await $.session.start(START)
+  // A /clear leaves the list without the session's pins until the next sync.
+  await $.session.end({ reason: 'clear' } as Parameters<typeof $.session.end>[0])
+
+  gate = new Promise<void>(resolve => {
+    release = resolve
+  })
+  const listed = $.tool.call(LIST_CALL)
+  const pinned = $.tool.call(pinCall('New', 'added'))
+  for (let i = 0; i < 200; i++) await Promise.resolve()
+  release()
+  await Promise.all([listed, pinned])
+
+  const titles = (disk.get('session:s1') as Saved).pins.map(pin => pin.title)
+  expect(titles).toEqual(['Old', 'New'])
+})
+
+test('a change spanning both boards is undone on disk when one write fails', async ($, on) => {
+  const { disk, store } = engine(on)
+  await $.session.start(START)
+  await $.tool.call(pinCall('Mine', 'a'))
+  await $.tool.call(pinCall('Ours', 'b', 'project'))
+  store.failKey = /^project:/
+
+  const denied = await $.tool.call(unpinCall({ all: true }))
+  expect(denied.deny).toContain('Nothing was changed')
+  expect((disk.get('session:s1') as Saved).pins.map(pin => pin.title)).toEqual(['Mine'])
+  expect((disk.get('project:/work/shop') as Saved).pins.map(pin => pin.title)).toEqual(['Ours'])
+
+  const listed = String((await $.tool.call(LIST_CALL)).result)
+  expect(listed).toContain('S1. Mine')
+  expect(listed).toContain('P1. Ours')
+})
+
+test('when the undo fails too, the person is told and the boards reload from disk', async ($, on) => {
+  const { disk, store } = engine(on)
+  await $.session.start(START)
+  await $.tool.call(pinCall('Mine', 'a'))
+  await $.tool.call(pinCall('Ours', 'b', 'project'))
+  // The session board is removed, the project board fails, the undo fails.
+  store.writesLeft = 1
+
+  const denied = await $.tool.call(unpinCall({ all: true }))
+  expect(denied.deny).toContain('may differ from the pane')
+  store.writesLeft = null
+  expect(disk.get('session:s1')).toBeUndefined()
+
+  // The next read shows what the store holds, not what the pane thought.
+  const listed = String((await $.tool.call(LIST_CALL)).result)
+  expect(listed).not.toContain('Mine')
+  expect(listed).toContain('P1. Ours')
 })

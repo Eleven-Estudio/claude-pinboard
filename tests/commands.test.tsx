@@ -82,3 +82,19 @@ test('a command answers the error when the store cannot be written', async ($, o
   expect(JSON.stringify([...disk])).toBe(before)
   expect((await run($, 'unpin', 's1')).text).toBe('Removed "Tests".')
 })
+
+test('removing the last pin closes the pane, whichever way it goes', async ($, on) => {
+  const { panesClosed } = engine(on)
+  await $.session.start(START)
+
+  await $.tool.call(pinCall('One', 'a'))
+  await run($, 'unpin', 's1')
+  expect(panesClosed()).toBe(1)
+
+  await $.tool.call(pinCall('One', 'a'))
+  await $.tool.call(pinCall('Two', 'b'))
+  await run($, 'unpin', 's1')
+  expect(panesClosed()).toBe(1)
+  await run($, 'unpin', 'all')
+  expect(panesClosed()).toBe(2)
+})

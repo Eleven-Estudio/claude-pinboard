@@ -1,6 +1,6 @@
 import type { CommandSpec, On } from 'claude-code'
 
-import { PANE, WAITING, addPin, failure, mutate, openPane, sync } from './lib/board'
+import { WAITING, addPin, failure, mutate, openPane, sync } from './lib/board'
 import { findByLabel, parseScoped, plural } from './lib/labels'
 import { readPins } from './lib/state'
 
@@ -72,7 +72,6 @@ export function hookCommands(on: On): void {
       } catch (error) {
         return { text: failure(error) }
       }
-      if ((await readPins($)).length === 0) await $.ui.close({ id: PANE })
 
       return { text: `Removed ${plural(removed.size)}.` }
     }
