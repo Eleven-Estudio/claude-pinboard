@@ -5,7 +5,7 @@
 
 Pin notes and checklists next to the chat in Claude Code, so they don't scroll away.
 
-<!-- demo GIF goes here: docs/demo.gif -->
+https://github.com/user-attachments/assets/4a14a2a6-07d9-466e-89af-7adc53b654d6
 
 I kept losing the test checklist Claude gave me. A bug would show up halfway
 through, the conversation would grow, and I'd scroll back up again and again to
