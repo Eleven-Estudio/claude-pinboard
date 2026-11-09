@@ -1,5 +1,8 @@
 # pinboard
 
+[![CI](https://github.com/Eleven-Estudio/claude-pinboard/actions/workflows/ci.yml/badge.svg)](https://github.com/Eleven-Estudio/claude-pinboard/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/github/license/Eleven-Estudio/claude-pinboard)](LICENSE)
+
 Pin notes and checklists next to the chat in Claude Code, so they don't scroll away.
 
 <!-- demo GIF goes here: docs/demo.gif -->
@@ -70,6 +73,26 @@ then **Add plugin**.
 - **Tools for Claude**: pinboard adds `pin`, `list_pins` and `unpin`. Claude
   reads your pins only when it calls `list_pins`.
 
+## What it hooks
+
+pinboard never rewrites a message, never runs a shell command or program, and
+contacts no network host. The one request it makes is the optional title below,
+sent through your own Claude Code session.
+
+| Hook | What it does |
+|---|---|
+| `session.start` | Registers `/pin`, `/pins`, `/unpin` and the `pin`, `list_pins`, `unpin` tools. Loads your boards, and deletes session boards untouched for 90 days. |
+| `session.end` | After `/clear` or a resume, drops the old session's pins from the pane. They stay in the store with that session. |
+| `prompt.submit` | Loads the boards of the session in force if they are not loaded yet. Never changes your prompt. |
+| `command.run` `pin` | Pins Claude's last reply, to the session board or, with `project`, the project's. |
+| `command.run` `pins` | Shows the pane. |
+| `command.run` `unpin` | Removes one pin or a whole board. |
+| `tool.call` `pin` | Pins the text Claude gives it, when you ask Claude to pin something. |
+| `tool.call` `list_pins` | Returns your pins to Claude, when it calls the tool. |
+| `tool.call` `unpin` | Removes pins when Claude calls it. |
+| `ui.render` `Pane` | Draws the pane and handles ticks, folds and the `x`. |
+| `ui.render` `AssistantMessage` | Draws the engine's own block, unchanged, and adds the hover pin control over it. |
+
 ## Limits
 
 - At most **50 pins per board** (session and project each have their own).
@@ -87,6 +110,10 @@ write fails, nothing changes and you are told why.
   and sits above the prompt otherwise.
 - The hover control needs the mouse: the fullscreen terminal or the desktop app.
 
+## Alternatives
+
+[pin-memo](https://github.com/YeonwooSung/my-claude-code-mods/tree/main/pin-memo): a one-line band above the prompt for notes you type; it also uses /pin, so install one or the other.
+
 ## Development
 
 ```
@@ -94,6 +121,8 @@ claude plugin validate .
 claude plugin test .
 claude --plugin-dir .
 ```
+
+See [CONTRIBUTING](CONTRIBUTING.md) for the typecheck and commit style.
 
 ## License
 
