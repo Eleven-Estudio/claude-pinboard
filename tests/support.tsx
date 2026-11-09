@@ -40,6 +40,7 @@ export function engine(on: On, stored: Record<string, unknown> = {}) {
     writesLeft: null,
   }
   let closed = 0
+  const ui = { isCloseBroken: false, isOpenBroken: false }
   let opened = 0
   const panes = new Set<string>()
   const guard = (key: string) => {
@@ -54,16 +55,28 @@ export function engine(on: On, stored: Record<string, unknown> = {}) {
   on('store.keys', () => ({ value: [...disk.keys()] }))
   on('command.register', (_, e) => ({ value: { command: e.name } }))
   on('tool.register', (_, e) => ({ value: { tool: `mcp__pinboard__${e.name}` } }))
-  on('ui.open', (_, e) => (opened++, panes.add(e.id), { value: { isPlaced: true } }))
+  on('ui.open', (_, e) => {
+    if (ui.isOpenBroken) throw new Error('no surface')
+    opened++
+    panes.add(e.id)
+
+    return { value: { isPlaced: true } }
+  })
   on('ui.panes', () => ({ value: [...panes].map(id => ({ id })) as never }))
-  on('ui.close', (_, e) => (closed++, panes.delete(e.id), { value: undefined }))
+  on('ui.close', (_, e) => {
+    if (ui.isCloseBroken) throw new Error('no surface')
+    closed++
+    panes.delete(e.id)
+
+    return { value: undefined }
+  })
   on('ui.toast', (_, e) => (toasts.push(e.text), { value: undefined }))
   on('session.id', () => ({ value: 's1' }))
   on('session.root', () => ({ value: '/work/shop' }))
   on('session.start', (_, e) => ({ cwd: e.cwd }))
   on('session.end', () => ({ sessionId: 's1' }))
 
-  return { disk, toasts, store, panes, panesOpened: () => opened, panesClosed: () => closed }
+  return { disk, toasts, store, ui, panes, panesOpened: () => opened, panesClosed: () => closed }
 }
 
 // Stands for the engine drawing a reply block itself.

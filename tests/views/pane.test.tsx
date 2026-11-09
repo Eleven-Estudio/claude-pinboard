@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 
-import { CHECKLIST, PANE, START, type Saved, engine, LIST_CALL, pinCall, pinOf } from '../support'
+import { CHECKLIST, PANE, START, type Saved, engine, engineRow, LIST_CALL, pinCall, pinOf } from '../support'
 
 test('a checklist the model pins opens as a card that can be ticked off, and is saved', async ($, on) => {
   const { disk } = engine(on)
@@ -125,4 +125,28 @@ test('the dash folds the pane to the band', async ($, on) => {
   // Minimized: a new pin says so with a toast and leaves the pane closed.
   await $.tool.call(pinCall('More', 'b'))
   expect(panes.has('pinboard')).toBe(false)
+})
+
+test('a dash that cannot close the pane says why and does not fold', async ($, on) => {
+  const { toasts, ui: surface } = engine(on)
+  engineRow(on)
+  await $.session.start(START)
+  await $.tool.call(pinCall('Tests', 'a'))
+  surface.isCloseBroken = true
+
+  const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
+  await ui.press({ key: 'minimize' })
+  await ui.unmount()
+  expect(toasts).toHaveLength(1)
+
+  // Not folded: the band is the engine's.
+  const band = await $.ui.mount({
+    plugin: 'pinboard',
+    surface: 'terminal',
+    component: 'AbovePrompt',
+    requestId: 'band',
+    props: { hasSurvey: false, isWorking: false, maxRows: 10, bodyColumns: 80, scroll: { offset: 0, bodyRows: 10 }, view: {} },
+  })
+  expect(await band.find({ key: 'restore' })).toBeUndefined()
+  await band.unmount()
 })

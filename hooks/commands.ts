@@ -1,6 +1,6 @@
 import type { CommandSpec, On } from 'claude-code'
 
-import { PANE, WAITING, addPin, failure, isPaneUp, minimize, mutate, restore, sync } from './lib/board'
+import { PANE, addPin, failure, isPaneUp, minimize, mutate, paneNote, restore, sync } from './lib/board'
 import { findReplySource } from './lib/replies'
 import { findByLabel, parseScoped, plural } from './lib/labels'
 import { readPins } from './lib/state'
@@ -45,9 +45,9 @@ export function hookCommands(on: On): void {
     if (body === '') return { text: 'There is no reply from Claude to pin yet.' }
     try {
       const source = findReplySource(body)
-      const { title, isPlaced } = await addPin($, { scope, body, title: rest || undefined, source })
+      const pin = await addPin($, { scope, body, title: rest || undefined, source })
 
-      return { text: `Pinned "${title}" to the ${scope} board.${isPlaced ? '' : WAITING}` }
+      return { text: `Pinned "${pin.title}" to the ${scope} board.${paneNote(pin)}` }
     } catch (error) {
       return { text: failure(error) }
     }

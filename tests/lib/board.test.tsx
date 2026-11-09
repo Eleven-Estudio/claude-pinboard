@@ -122,13 +122,22 @@ test('pins stored for the session survive a change made while they reload', asyn
   const { disk } = engine(on, {
     'session:s1': { pins: [pinOf('Old', 'kept')], updatedAt: Date.now() },
   })
-  // Holds the next write to $.state, as a busy engine would.
+  // Holds the next write to $.state, as a busy engine would, and says when
+  // the reload has reached it.
   let release = () => {}
+  let reached = () => {}
+  const atGate = new Promise<void>(resolve => {
+    reached = resolve
+  })
   let gate: Promise<void> | null = null
   on('state.set', async (_, e, next) => {
     const held = gate
     gate = null
-    await held
+    if (held !== null) {
+      reached()
+      await held
+    }
+
     return next(e)
   })
   await $.session.start(START)
@@ -139,8 +148,9 @@ test('pins stored for the session survive a change made while they reload', asyn
     release = resolve
   })
   const listed = $.tool.call(LIST_CALL)
+  await atGate
+  // The reload is half done: its write is held. A change now must wait for it.
   const pinned = $.tool.call(pinCall('New', 'added'))
-  for (let i = 0; i < 200; i++) await Promise.resolve()
   release()
   await Promise.all([listed, pinned])
 

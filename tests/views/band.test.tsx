@@ -68,3 +68,19 @@ test('the band yields to a survey and to an empty board', async ($, on) => {
   expect(await survey.find({ key: 'restore' })).toBeUndefined()
   await survey.unmount()
 })
+
+test('a band press that cannot open the pane says why and stays folded', async ($, on) => {
+  const { toasts, ui: surface } = engine(on)
+  engineRow(on)
+  await $.session.start(START)
+  await $.tool.call(pinCall('Tests', 'a'))
+  await press($, 'pins')
+  surface.isOpenBroken = true
+
+  const ui = await $.ui.mount({ ...BAND, surface: 'desktop' })
+  await ui.press({ key: 'restore' })
+  expect(toasts).toHaveLength(1)
+  // Still folded: the band is still the one line.
+  expect(await ui.find({ key: 'restore' })).toBeDefined()
+  await ui.unmount()
+})

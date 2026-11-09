@@ -1,6 +1,7 @@
 import { expect, test } from 'claude-code/testing'
 import type { TestBody } from 'claude-code/testing'
 
+import { resetReplies } from '../hooks/lib/replies'
 import { PANE, START, type Saved, engine, engineRow, pinCall, pinOf, reply } from './support'
 
 type Ctx = Parameters<TestBody>[0]
@@ -100,6 +101,7 @@ test('removing the last pin closes the pane, whichever way it goes', async ($, o
 })
 
 test('/pin remembers the reply it pins once that reply was drawn, and none otherwise', async ($, on) => {
+  resetReplies()
   const { disk } = engine(on)
   engineRow(on)
   reply(on, '# Deploy\n\nRun the release script.')
@@ -126,7 +128,7 @@ test('/pin remembers the reply it pins once that reply was drawn, and none other
 })
 
 test('/pins folds the pane when it is up, and brings it back when it is not', async ($, on) => {
-  const { panes, toasts } = engine(on)
+  const { panes } = engine(on)
   await $.session.start(START)
   await $.tool.call(pinCall('Tests', 'a'))
   expect(panes.has('pinboard')).toBe(true)
@@ -134,16 +136,29 @@ test('/pins folds the pane when it is up, and brings it back when it is not', as
   expect((await run($, 'pins')).text).toContain('minimized')
   expect(panes.has('pinboard')).toBe(false)
 
-  // Pinned while minimized: the pane stays folded and a toast confirms.
-  await $.tool.call(pinCall('More', 'b'))
+  // Pinned while minimized: the pane stays folded.
+  const pinned = await $.tool.call(pinCall('More', 'b'))
   expect(panes.has('pinboard')).toBe(false)
-  expect(toasts).toContain('Pinned "More" to the session board.')
+  expect(String(pinned.result)).toContain('minimized')
 
   expect((await run($, 'pins')).text).toBe('Pinned pane shown.')
   expect(panes.has('pinboard')).toBe(true)
 })
 
-test('the pane does not open at start while minimized, and removing the last pin clears it', async ($, on) => {
+test('/pin while minimized gives one notice, not a toast and a text', async ($, on) => {
+  const { toasts } = engine(on)
+  reply(on, '# Deploy\n\nRun the release script.')
+  await $.session.start(START)
+  await $.tool.call(pinCall('Tests', 'a'))
+  await run($, 'pins')
+
+  const ran = await run($, 'pin', 'Deploy')
+  expect(ran.text).toContain('Pinned "Deploy" to the session board.')
+  expect(ran.text).toContain('/pins shows it')
+  expect(toasts).toEqual([])
+})
+
+test('the pane stays closed when the session starts again while minimized', async ($, on) => {
   const { panes } = engine(on, {
     'session:s1': { pins: [pinOf('Tests', 'a')], updatedAt: Date.now() },
   })
@@ -151,13 +166,37 @@ test('the pane does not open at start while minimized, and removing the last pin
   expect(panes.has('pinboard')).toBe(true)
 
   await run($, 'pins')
-  // A /clear and the next load of the same board must leave it folded.
-  await $.session.end({ reason: 'clear' } as Parameters<typeof $.session.end>[0])
-  await run($, 'unpin', 'nothing-yet')
+  await $.session.start(START)
+  expect(panes.has('pinboard')).toBe(false)
+})
+
+test('a /clear unfolds the pane, and removing the last pin clears the fold', async ($, on) => {
+  const { panes } = engine(on, {
+    'session:s1': { pins: [pinOf('Tests', 'a')], updatedAt: Date.now() },
+  })
+  await $.session.start(START)
+  await run($, 'pins')
   expect(panes.has('pinboard')).toBe(false)
 
-  // Removing the last pin forgets the fold: the next pin opens the pane.
+  // The new session starts unfolded: its board loads and the pane opens.
+  await $.session.end({ reason: 'clear' } as Parameters<typeof $.session.end>[0])
+  await run($, 'unpin', 'nothing-yet')
+  expect(panes.has('pinboard')).toBe(true)
+
+  // Folded again, the last pin removed forgets the fold: the next pin opens the pane.
+  await run($, 'pins')
   await run($, 'unpin', 's1')
   await $.tool.call(pinCall('Fresh', 'b'))
   expect(panes.has('pinboard')).toBe(true)
+})
+
+test('a failed close leaves the pane unfolded and the change saved', async ($, on) => {
+  const { disk, ui } = engine(on)
+  await $.session.start(START)
+  await $.tool.call(pinCall('Tests', 'a'))
+  ui.isCloseBroken = true
+
+  // The last pin goes: the pane cannot close, but the removal is kept.
+  expect((await run($, 'unpin', 's1')).text).toBe('Removed "Tests".')
+  expect(disk.get('session:s1')).toBeUndefined()
 })

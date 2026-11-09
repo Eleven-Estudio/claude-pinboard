@@ -43,7 +43,7 @@ export function hookPane(on: On): void {
     }
 
     const jump = async (source: string) => {
-      if (!(await jumpTo($, source))) $.ui.toast('That reply is no longer in the view.')
+      if (!(await jumpTo(args => $.ui.scroll(args), source))) $.ui.toast('That reply is no longer in the view.')
     }
 
     const drawPin = (pin: Pin, index: number) => {
@@ -113,7 +113,7 @@ export function hookPane(on: On): void {
     return (
       <Box flexDirection="column" gap={1}>
         <Box flexDirection="row" justifyContent="flex-end">
-          <Button key="minimize" label="–" plain dimColor onPress={() => void minimize($)} />
+          <Button key="minimize" label="–" plain dimColor onPress={() => void minimize($).catch((error: unknown) => $.ui.toast(failure(error)))} />
         </Box>
         {boards.map(group => (
           <Box flexDirection="column">

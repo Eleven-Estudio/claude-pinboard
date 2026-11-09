@@ -9,6 +9,15 @@ export const PANE = 'pinboard'
 const TITLE = 'Pinned'
 // Appended to a pin's confirmation when the pane has no room yet.
 export const WAITING = ' The pane is waiting for a wider terminal; the person can run /pins to show it.'
+// Appended when the pane is minimized and the pin shows in the band.
+export const FOLDED = ' The pane is minimized to a band above the prompt; /pins shows it.'
+
+// What follows "Pinned ..." in a command's or tool's one notice.
+export function paneNote(pin: { isPlaced: boolean; isMinimized: boolean }): string {
+  if (pin.isMinimized) return FOLDED
+
+  return pin.isPlaced ? '' : WAITING
+}
 export const MAX_PINS_PER_BOARD = 50
 export const MAX_BODY_CHARS = 20_000
 // Session boards nobody touched in this long are dropped from the store at
@@ -80,16 +89,18 @@ export async function isPaneUp($: EngineInterface): Promise<boolean> {
 }
 
 // Folds the pane to the band above the prompt.
+// The flag is set once the pane has closed, so a failed close leaves it be.
 export async function minimize($: EngineInterface): Promise<void> {
-  await setIsMinimized($, true)
   await $.ui.close({ id: PANE })
+  await setIsMinimized($, true)
 }
 
 // Puts the pane back where the band was.
 export async function restore($: EngineInterface): Promise<boolean> {
+  const isPlaced = await openPane($)
   await setIsMinimized($, false)
 
-  return openPane($)
+  return isPlaced
 }
 
 // Everything that reads or writes the boards runs one task at a time, so a
@@ -146,12 +157,14 @@ export function startBoards($: EngineInterface): Promise<void> {
 }
 
 // After a /clear or a resume the process goes on under another session id:
-// drop this session's pins from $.state (they stay on disk with it) and let
-// the next sync load the new ones.
+// drop this session's pins from $.state (they stay on disk with it), unfold the
+// pane, and let the next sync load the new ones.
 export function forgetSession($: EngineInterface): Promise<void> {
   return enqueue(async () => {
     loaded = { session: '', project: '' }
     await updatePins($, list => byScope(list, 'project'))
+    // The next session starts with the pane unfolded.
+    await setIsMinimized($, false)
   })
 }
 
@@ -264,12 +277,9 @@ export async function addPin(
   await setOpenPin($, openId)
   if (isNew && request.title === undefined) suggestTitle($, openId, title, body)
 
-  // Minimized, a new pin does not bring the pane back: the band shows it.
-  if (await readIsMinimized($)) {
-    $.ui.toast(`Pinned "${title}" to the ${scope} board.`)
-
-    return { title, isPlaced: true, isMinimized: true }
-  }
+  // Minimized, a new pin does not bring the pane back: the band shows it. The
+  // caller says so, in the one notice it gives.
+  if (await readIsMinimized($)) return { title, isPlaced: true, isMinimized: true }
 
   return { title, isPlaced: await openPane($), isMinimized: false }
 }

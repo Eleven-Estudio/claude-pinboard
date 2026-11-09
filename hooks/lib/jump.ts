@@ -1,4 +1,4 @@
-import type { EngineInterface, UiScrollArgs } from 'claude-code'
+import type { UiScrollArgs, UiScrollResult } from 'claude-code'
 
 // Where the jump lands: the top of the render instance the pin came from.
 export function scrollArgs(source: string): UiScrollArgs {
@@ -9,9 +9,12 @@ export function scrollArgs(source: string): UiScrollArgs {
 // view moved, false when it did not: the reply was compacted away or cleared,
 // or the engine refused. Call it from a press only, which is the person's
 // input and what scrolling a transcript row requires.
-export async function jumpTo($: EngineInterface, source: string): Promise<boolean> {
+export async function jumpTo(
+  scroll: (args: UiScrollArgs) => Promise<UiScrollResult>,
+  source: string,
+): Promise<boolean> {
   try {
-    const moved = await $.ui.scroll(scrollArgs(source))
+    const moved = await scroll(scrollArgs(source))
 
     return moved.deny === undefined
   } catch {

@@ -1,7 +1,7 @@
 import type { On } from 'claude-code'
 
 import { bandText } from '../lib/band'
-import { restore } from '../lib/board'
+import { failure, restore } from '../lib/board'
 import { readIsMinimized, readOpenPin, readPins } from '../lib/state'
 
 // While the pane is minimized, one line above the prompt: the count and the
@@ -17,7 +17,7 @@ export function hookBand(on: On): void {
 
     return (
       <Box>
-        <Button key="restore" plain onPress={() => void restore($)}>
+        <Button key="restore" plain onPress={() => void restore($).catch((error: unknown) => $.ui.toast(failure(error)))}>
           {text}
         </Button>
       </Box>

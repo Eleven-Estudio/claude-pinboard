@@ -19,7 +19,7 @@ declare module 'claude-code' {
     // openPin: the one card shown open; null until the person picks one (the
     // newest pin is open then), '' when they closed every card.
     // isMinimized: the pane is folded to a one-line band above the prompt. It
-    // belongs to the running session, so a new one starts unminimized.
+    // belongs to the session: a new one, and a /clear or resume, start unfolded.
     pinboard: { pins: Shaped<Pin[]>; openPin: string | null; isMinimized: boolean }
   }
 }

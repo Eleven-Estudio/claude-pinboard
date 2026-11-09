@@ -1,7 +1,7 @@
 import type { On, ToolSpec } from 'claude-code'
 
 import type { Pin, PinScope } from '../types'
-import { WAITING, addPin, failure, mutate, sync } from './lib/board'
+import { addPin, failure, mutate, paneNote, sync } from './lib/board'
 import { byScope, label, plural } from './lib/labels'
 import { readPins } from './lib/state'
 
@@ -78,14 +78,14 @@ export function hookTools(on: On): void {
     const scope = asScope(input.scope) ?? 'session'
     const given = asString(input.title).trim()
     try {
-      const { title, isPlaced } = await addPin($, {
-      scope,
-      body,
-      title: given || undefined,
-      source: asString(input.tool_use_id) || undefined,
-    })
+      const pin = await addPin($, {
+        scope,
+        body,
+        title: given || undefined,
+        source: asString(input.tool_use_id) || undefined,
+      })
 
-      return { result: `Pinned "${title}" to the ${scope} board.${isPlaced ? '' : WAITING}` }
+      return { result: `Pinned "${pin.title}" to the ${scope} board.${paneNote(pin)}` }
     } catch (error) {
       return { deny: failure(error) }
     }
