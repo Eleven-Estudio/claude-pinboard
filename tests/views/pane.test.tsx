@@ -1,0 +1,93 @@
+import { expect, test } from 'claude-code/testing'
+
+import { CHECKLIST, PANE, START, type Saved, engine, LIST_CALL, pinCall } from '../support'
+
+test('a checklist the model pins opens as a card that can be ticked off, and is saved', async ($, on) => {
+  const { disk } = engine(on)
+  await $.session.start(START)
+  await $.tool.call(pinCall('Tests', CHECKLIST))
+
+  for (const surface of ['terminal', 'desktop'] as const) {
+    const ui = await $.ui.mount({ ...PANE, surface })
+    expect((await ui.find({ type: 'Text', text: /S1 · Tests/ }))?.text).toContain('S1 · Tests')
+    await ui.unmount()
+  }
+
+  const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
+  const login = await ui.find({ type: 'Button', text: /\[ \] Log in/ })
+  expect(login?.key).toBeDefined()
+  await ui.press({ key: login?.key ?? '' })
+  expect((await ui.find({ type: 'Button', text: /Log in/ }))?.text).toContain('[x] Log in')
+  await ui.unmount()
+
+  const listed = await $.tool.call(LIST_CALL)
+  expect(String(listed.result)).toContain('- [x] Log in with a test account')
+  expect(String(listed.result)).toContain('- [ ] Log out')
+  expect((disk.get('session:s1') as Saved).pins[0]?.body).toContain('- [x] Log in with a test account')
+})
+
+test('the card header shows the progress', async ($, on) => {
+  engine(on)
+  await $.session.start(START)
+  await $.tool.call(pinCall('Tests', '- [x] One\n- [ ] Two'))
+
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  expect(await ui.find({ type: 'Text', text: /1\/2/ })).toBeDefined()
+  await ui.unmount()
+})
+
+test('one card is open at a time: the newest, until another is picked', async ($, on) => {
+  engine(on)
+  await $.session.start(START)
+  await $.tool.call(pinCall('Login', '- [ ] Log in'))
+  await $.tool.call(pinCall('Checkout', '- [ ] Pay'))
+
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  expect(await ui.find({ type: 'Button', text: /\[ \] Pay/ })).toBeDefined()
+  expect(await ui.find({ type: 'Button', text: /\[ \] Log in/ })).toBeUndefined()
+
+  const login = await ui.find({ type: 'Button', text: /S1 · Login/ })
+  await ui.press({ key: login?.key ?? '' })
+  expect(await ui.find({ type: 'Button', text: /\[ \] Log in/ })).toBeDefined()
+  expect(await ui.find({ type: 'Button', text: /\[ \] Pay/ })).toBeUndefined()
+
+  // Pressing the open card's header closes it.
+  await ui.press({ key: login?.key ?? '' })
+  expect(await ui.find({ type: 'Button', text: /\[ \] Log in/ })).toBeUndefined()
+  await ui.unmount()
+})
+
+test('the x on a card removes the pin', async ($, on) => {
+  const { disk } = engine(on)
+  await $.session.start(START)
+  await $.tool.call(pinCall('Tests', 'a'))
+
+  const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
+  const remove = await ui.find({ type: 'Button', text: /x/ })
+  await ui.press({ key: remove?.key ?? '' })
+  await ui.unmount()
+
+  expect(disk.get('session:s1')).toBeUndefined()
+})
+
+test('an empty board says how to pin', async ($, on) => {
+  engine(on)
+  const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
+  expect((await ui.find({ type: 'Text' }))?.text).toBe('Nothing pinned.')
+  await ui.unmount()
+})
+
+test('a press that cannot be saved shows why and leaves the card as it was', async ($, on) => {
+  const { toasts, store } = engine(on)
+  await $.session.start(START)
+  await $.tool.call(pinCall('Tests', CHECKLIST))
+  store.isBroken = true
+
+  const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
+  const login = await ui.find({ type: 'Button', text: /\[ \] Log in/ })
+  await ui.press({ key: login?.key ?? '' })
+
+  expect(toasts.join(' ')).toContain('could not be saved')
+  expect(await ui.find({ type: 'Button', text: /\[ \] Log in/ })).toBeDefined()
+  await ui.unmount()
+})
