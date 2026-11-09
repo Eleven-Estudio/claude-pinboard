@@ -72,13 +72,18 @@ function boardText(list: readonly Pin[], scope: PinScope): string {
 
 export function hookTools(on: On): void {
   on('tool.call', { tool: TOOL_PIN }, async ($, e) => {
-    const input = e as unknown as { title?: unknown; markdown?: unknown; scope?: unknown }
+    const input = e as unknown as { title?: unknown; markdown?: unknown; scope?: unknown; tool_use_id?: unknown }
     const body = asString(input.markdown).trim()
     if (body === '') return { deny: 'markdown is required and cannot be empty.' }
     const scope = asScope(input.scope) ?? 'session'
     const given = asString(input.title).trim()
     try {
-      const { title, isPlaced } = await addPin($, { scope, body, title: given || undefined })
+      const { title, isPlaced } = await addPin($, {
+      scope,
+      body,
+      title: given || undefined,
+      source: asString(input.tool_use_id) || undefined,
+    })
 
       return { result: `Pinned "${title}" to the ${scope} board.${isPlaced ? '' : WAITING}` }
     } catch (error) {

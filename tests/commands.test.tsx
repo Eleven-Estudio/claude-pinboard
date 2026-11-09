@@ -1,7 +1,7 @@
 import { expect, test } from 'claude-code/testing'
 import type { TestBody } from 'claude-code/testing'
 
-import { PANE, START, engine, pinCall, pinOf, reply } from './support'
+import { PANE, START, type Saved, engine, engineRow, pinCall, pinOf, reply } from './support'
 
 type Ctx = Parameters<TestBody>[0]
 
@@ -97,4 +97,30 @@ test('removing the last pin closes the pane, whichever way it goes', async ($, o
   expect(panesClosed()).toBe(1)
   await run($, 'unpin', 'all')
   expect(panesClosed()).toBe(2)
+})
+
+test('/pin remembers the reply it pins once that reply was drawn, and none otherwise', async ($, on) => {
+  const { disk } = engine(on)
+  engineRow(on)
+  reply(on, '# Deploy\n\nRun the release script.')
+  await $.session.start(START)
+
+  await run($, 'pin', 'Before')
+  expect((disk.get('session:s1') as Saved).pins[0]?.source).toBeUndefined()
+
+  const ui = await $.ui.mount({
+    plugin: 'pinboard',
+    surface: 'desktop',
+    component: 'AssistantMessage',
+    requestId: 'm-deploy',
+    props: { text: '# Deploy\n\nRun the release script.', isFirstOfReply: true },
+  })
+  await ui.unmount()
+  await run($, 'pin', 'After')
+
+  const pins = (disk.get('session:s1') as Saved).pins
+  expect(pins).toHaveLength(1)
+  // The same text pinned again is the same pin, now with its source.
+  expect(pins[0]?.title).toBe('Before')
+  expect(pins[0]?.source).toBe('m-deploy')
 })

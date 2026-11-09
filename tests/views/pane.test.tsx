@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 
-import { CHECKLIST, PANE, START, type Saved, engine, LIST_CALL, pinCall } from '../support'
+import { CHECKLIST, PANE, START, type Saved, engine, LIST_CALL, pinCall, pinOf } from '../support'
 
 test('a checklist the model pins opens as a card that can be ticked off, and is saved', async ($, on) => {
   const { disk } = engine(on)
@@ -89,5 +89,24 @@ test('a press that cannot be saved shows why and leaves the card as it was', asy
 
   expect(toasts.join(' ')).toContain('could not be saved')
   expect(await ui.find({ type: 'Button', text: /\[ \] Log in/ })).toBeDefined()
+  await ui.unmount()
+})
+
+test('the arrow tells the person when the reply cannot be reached', async ($, on) => {
+  // The test engine has no transcript to scroll, so the jump cannot land.
+  const { toasts } = engine(on, {
+    'session:s1': {
+      pins: [{ ...pinOf('Tests', 'a', 2), source: 'toolu_7' }, pinOf('Plain', 'b', 1)],
+      updatedAt: Date.now(),
+    },
+  })
+  await $.session.start(START)
+
+  const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
+  // Only the pin that has a source gets an arrow.
+  const arrows = await ui.findAll({ type: 'Button', text: /↑/ })
+  expect(arrows).toHaveLength(1)
+  await ui.press({ key: arrows[0]?.key ?? '' })
+  expect(toasts).toEqual(['That reply is no longer in the view.'])
   await ui.unmount()
 })

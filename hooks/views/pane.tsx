@@ -3,6 +3,7 @@ import type { On } from 'claude-code'
 import type { Pin } from '../../types'
 import { PANE, failure, mutate } from '../lib/board'
 import { progress, segments, toggleTask } from '../lib/checklist'
+import { jumpTo } from '../lib/jump'
 import { byScope, label } from '../lib/labels'
 import { resolveOpenId } from '../lib/open-pin'
 import { readOpenPin, readPins, setOpenPin } from '../lib/state'
@@ -41,6 +42,10 @@ export function hookPane(on: On): void {
       mutate($, edit).catch((error: unknown) => $.ui.toast(failure(error)))
     }
 
+    const jump = async (source: string) => {
+      if (!(await jumpTo($, source))) $.ui.toast('That reply is no longer in the view.')
+    }
+
     const drawPin = (pin: Pin, index: number) => {
       const count = progress(pin.body)
       const isOpen = pin.id === openId
@@ -59,13 +64,18 @@ export function hookPane(on: On): void {
             </Text>
             {count === '' ? '' : <Text dimColor>  {count}</Text>}
           </Button>
-          <Button
-            key={`rm:${pin.id}`}
-            label="x"
-            plain
-            dimColor
-            onPress={() => change(current => current.filter(one => one.id !== pin.id))}
-          />
+          <Box flexDirection="row">
+            {pin.source === undefined ? null : (
+              <Button key={`go:${pin.id}`} label="↑ " plain dimColor onPress={() => void jump(pin.source ?? '')} />
+            )}
+            <Button
+              key={`rm:${pin.id}`}
+              label="x"
+              plain
+              dimColor
+              onPress={() => change(current => current.filter(one => one.id !== pin.id))}
+            />
+          </Box>
         </Box>
       )
 

@@ -25,7 +25,7 @@ export const USAGE = {
   cache_read_input_tokens: 0,
 }
 
-export type Saved = { pins: { title: string; body: string }[] }
+export type Saved = { pins: { title: string; body: string; source?: string }[] }
 
 // Nothing sits beneath the plugin: these hooks stand for the engine. The
 // plugin's store is a Map the test reads back, standing for the file on disk.
@@ -40,6 +40,8 @@ export function engine(on: On, stored: Record<string, unknown> = {}) {
     writesLeft: null,
   }
   let closed = 0
+  let opened = 0
+  const panes = new Set<string>()
   const guard = (key: string) => {
     if (store.isBroken || store.failKey?.test(key) === true || store.writesLeft === 0) {
       throw new Error('disk full')
@@ -52,16 +54,16 @@ export function engine(on: On, stored: Record<string, unknown> = {}) {
   on('store.keys', () => ({ value: [...disk.keys()] }))
   on('command.register', (_, e) => ({ value: { command: e.name } }))
   on('tool.register', (_, e) => ({ value: { tool: `mcp__pinboard__${e.name}` } }))
-  on('ui.open', () => ({ value: { isPlaced: true } }))
-  on('ui.panes', () => ({ value: [] }))
-  on('ui.close', () => (closed++, { value: undefined }))
+  on('ui.open', (_, e) => (opened++, panes.add(e.id), { value: { isPlaced: true } }))
+  on('ui.panes', () => ({ value: [...panes].map(id => ({ id })) as never }))
+  on('ui.close', (_, e) => (closed++, panes.delete(e.id), { value: undefined }))
   on('ui.toast', (_, e) => (toasts.push(e.text), { value: undefined }))
   on('session.id', () => ({ value: 's1' }))
   on('session.root', () => ({ value: '/work/shop' }))
   on('session.start', (_, e) => ({ cwd: e.cwd }))
   on('session.end', () => ({ sessionId: 's1' }))
 
-  return { disk, toasts, store, panesClosed: () => closed }
+  return { disk, toasts, store, panes, panesOpened: () => opened, panesClosed: () => closed }
 }
 
 // Stands for the engine drawing a reply block itself.

@@ -61,3 +61,15 @@ test('a press that cannot be saved shows why', async ($, on) => {
 
   expect(toasts.join(' ')).toContain('could not be saved')
 })
+
+test('the hover pin remembers which reply it came from', async ($, on) => {
+  const { disk } = engine(on)
+  engineRow(on)
+  await $.session.start(START)
+
+  const ui = await $.ui.mount(message('desktop', 'm-src', { text: '# Steps\n\n- [ ] Pay', isFirstOfReply: true }))
+  await ui.press({ key: 'pin:m-src' })
+  await ui.unmount()
+
+  expect((disk.get('session:s1') as Saved).pins[0]?.source).toBe('m-src')
+})

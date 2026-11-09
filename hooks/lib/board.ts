@@ -48,10 +48,16 @@ function savedField(saved: unknown, field: keyof Saved): unknown {
   return typeof saved === 'object' && saved !== null ? (saved as Record<string, unknown>)[field] : undefined
 }
 
+// A stored pin as the board holds it; `source` is kept only when it is text.
+function readPin(pin: Pin, scope: PinScope): Pin {
+  const { source, ...rest } = pin
+  return typeof source === 'string' ? { ...rest, scope, source } : { ...rest, scope }
+}
+
 async function loadSaved($: EngineInterface, key: string, scope: PinScope): Promise<Pin[]> {
   const list = savedField(await $.store.get(key), 'pins')
 
-  return Array.isArray(list) ? list.filter(isPin).map(pin => ({ ...pin, scope })) : []
+  return Array.isArray(list) ? list.filter(isPin).map(pin => readPin(pin, scope)) : []
 }
 
 async function save($: EngineInterface, key: string, list: readonly Pin[]): Promise<void> {
@@ -197,6 +203,8 @@ export type PinRequest = {
   // Given by the person or the model; absent, a guess now and the small
   // model's title once it answers.
   title?: string
+  // Where the pin came from, for the pane's jump button.
+  source?: string
 }
 
 export async function addPin(
@@ -221,7 +229,9 @@ export async function addPin(
       list.find(pin => pin.scope === scope && pin.title === title)
     if (same !== undefined) {
       openId = same.id
-      return list.map(pin => (pin.id === same.id ? { ...pin, body } : pin))
+      return list.map(pin =>
+        pin.id === same.id ? { ...pin, body, source: request.source ?? pin.source } : pin,
+      )
     }
     if (byScope(list, scope).length >= MAX_PINS_PER_BOARD) {
       throw new BoardError(
@@ -231,7 +241,7 @@ export async function addPin(
     openId = newId()
     isNew = true
 
-    return [...list, { id: openId, title, body, scope, pinnedAt: Date.now() }]
+    return [...list, { id: openId, title, body, scope, pinnedAt: Date.now(), source: request.source }]
   })
   await setOpenPin($, openId)
   if (isNew && request.title === undefined) suggestTitle($, openId, title, body)

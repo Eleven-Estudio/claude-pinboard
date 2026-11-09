@@ -56,6 +56,9 @@ version.
 - **Ask Claude**: "pin the steps I have to test". Claude can also read your pins
   back, so "what's left to test?" works after a detour.
 - Lines written `- [ ] item` become **checkboxes** you tick in the pane.
+- Click **`↑`** on a pin to jump back to the reply it came from, even far up the
+  conversation. A pin made from an older session, or whose reply was compacted
+  away, has nothing to jump to.
 - Pins are **cards**: one is open at a time, the rest fold to one line with their
   progress (`▸ S2 · Login tests  2/5`). Click a card's title to open it.
 
@@ -108,7 +111,7 @@ title above, goes through your own Claude Code session.
 | `tool.call` `pin` | Pins the text Claude gives it, when you ask Claude to pin something. |
 | `tool.call` `list_pins` | Returns your pins to Claude, when it calls the tool. |
 | `tool.call` `unpin` | Removes pins when Claude calls it. |
-| `ui.render` `Pane` | Draws the pane and handles ticks, folds and the `x`. |
+| `ui.render` `Pane` | Draws the pane and handles ticks, folds, the `x` and the `↑` that scrolls the transcript back to a pin's reply. |
 | `ui.render` `AssistantMessage` | Draws the engine's own block, unchanged, and adds the hover pin control over it. |
 
 ## Limits

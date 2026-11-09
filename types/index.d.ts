@@ -8,6 +8,10 @@ export type Pin = {
   body: string
   scope: PinScope
   pinnedAt: number
+  // The render requestId of where the pin came from: the reply's message id,
+  // or the tool_use_id of the call that pinned it. Absent on older pins and
+  // where the reply could not be told apart.
+  source?: string
 }
 
 declare module 'claude-code' {

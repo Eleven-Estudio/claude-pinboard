@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 
-import { CHECKLIST, START, engine, LIST_CALL, pinCall, unpinCall } from './support'
+import { CHECKLIST, START, type Saved, engine, LIST_CALL, pinCall, unpinCall } from './support'
 
 test('a pin without text is refused', async ($, on) => {
   engine(on)
@@ -51,4 +51,12 @@ test('a tool is denied when the store cannot be written', async ($, on) => {
 
   store.isBroken = false
   expect(JSON.stringify([...disk])).toBe(before)
+})
+
+test('a pin made by Claude remembers the tool call that made it', async ($, on) => {
+  const { disk } = engine(on)
+  await $.session.start(START)
+  await $.tool.call({ ...pinCall('Tests', 'a'), tool_use_id: 'toolu_42' } as Parameters<typeof $.tool.call>[0])
+
+  expect((disk.get('session:s1') as Saved).pins[0]?.source).toBe('toolu_42')
 })
