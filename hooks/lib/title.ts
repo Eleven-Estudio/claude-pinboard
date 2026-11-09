@@ -6,6 +6,14 @@ import { CHECK } from './checklist'
 // A short title for a pin made from a reply is asked of a small model; the
 // quick guess from titleFrom stays if it fails.
 const TITLE_MODEL = 'haiku'
+// How much of the note the model reads: enough to name it, bounded in cost.
+const TITLE_BODY_CHARS = 6000
+// A title is a few words; this stops a model that rambles.
+const TITLE_MAX_TOKENS = 40
+// Longer and the pin is on screen too long under its quick guess.
+const TITLE_TIMEOUT_MS = 20_000
+// A title longer than this is cut, with an ellipsis, to fit one pane line.
+const TITLE_MAX_LENGTH = 48
 const TITLE_PROMPT =
   'Write a title of 2 to 6 words for the note below, so its author can find it in a list of notes. Use the language the note is written in. Reply with the title alone: no quotes, no markdown, no final period.\n\n<note>\n'
 
@@ -19,7 +27,7 @@ export function cleanTitle(text: string): string {
     .replace(/[:.]\s*$/, '')
     .trim()
 
-  return line.length > 48 ? `${line.slice(0, 47)}…` : line
+  return line.length > TITLE_MAX_LENGTH ? `${line.slice(0, TITLE_MAX_LENGTH - 1)}…` : line
 }
 
 // The quick guess: the first heading, else a bold phrase opening a line,
@@ -50,10 +58,10 @@ export function bodyBelowTitle(pin: Pin): string {
 export async function requestTitle($: EngineInterface, body: string): Promise<string> {
   const reply = await $.model.complete({
     model: TITLE_MODEL,
-    prompt: `${TITLE_PROMPT}${body.slice(0, 6000)}\n</note>`,
-    maxTokens: 40,
+    prompt: `${TITLE_PROMPT}${body.slice(0, TITLE_BODY_CHARS)}\n</note>`,
+    maxTokens: TITLE_MAX_TOKENS,
     effort: 'low',
-    timeoutMs: 20000,
+    timeoutMs: TITLE_TIMEOUT_MS,
   })
 
   return reply.isAnswered ? cleanTitle(reply.text) : ''
