@@ -3,7 +3,7 @@
 #
 # Nothing of your own setup shows up: the session uses its own config
 # directory (settings, CLAUDE.md, plugins, MCP servers, history, login),
-# runs in a throwaway copy of the demo project under /tmp, and loads
+# runs in a throwaway copy of the demo project in your temp folder, and loads
 # pinboard from this checkout.
 #
 #   demo/start.sh              fresh project, new session
@@ -13,7 +13,11 @@ set -euo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"
 repo="$(cd "$here/.." && pwd)"
 config="${PINBOARD_DEMO_CONFIG:-$HOME/.pinboard-demo/config}"
-workdir="/tmp/pinboard-demo"
+# A folder of your own in the temp directory (per user on macOS), never a path
+# another user could have made first.
+base="${TMPDIR:-/tmp}"
+base="${base%/}"
+workdir="$base/pinboard-demo-$(id -u)"
 project="$workdir/corner-coffee"
 
 if ! command -v claude >/dev/null; then
@@ -21,15 +25,30 @@ if ! command -v claude >/dev/null; then
   exit 1
 fi
 
-# A new copy of the project, unless resuming the session that worked in it.
-if [[ "${1:-}" != "--continue" ]]; then
-  if [[ -d "$workdir" && ! -f "$workdir/.pinboard-demo" ]]; then
-    echo "$workdir exists and was not made by this script; remove it first." >&2
+# Refuses a workdir that is a symlink, belongs to someone else or was not made
+# by this script, before anything is removed or written in it.
+check_workdir() {
+  if [[ -L "$workdir" || ! -d "$workdir" || ! -O "$workdir" || -L "$workdir/.pinboard-demo" || ! -f "$workdir/.pinboard-demo" ]]; then
+    echo "$workdir is not a folder this script made for you; remove it first." >&2
     exit 1
   fi
-  rm -rf "$workdir"
-  mkdir -p "$project"
+}
+
+if [[ "${1:-}" == "--continue" ]]; then
+  if [[ ! -e "$workdir" && ! -L "$workdir" ]]; then
+    echo "There is no demo session to continue; run demo/start.sh without --continue." >&2
+    exit 1
+  fi
+  check_workdir
+else
+  # A new copy of the project.
+  if [[ -e "$workdir" || -L "$workdir" ]]; then
+    check_workdir
+    rm -rf "$workdir"
+  fi
+  mkdir -m 700 "$workdir"
   touch "$workdir/.pinboard-demo"
+  mkdir "$project"
   cp -R "$here/project/." "$project/"
   git -C "$project" init -q
   git -C "$project" add .
