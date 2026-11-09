@@ -17,6 +17,16 @@ All notable changes to this project are documented here. The format follows
   or opened, and a failure shows a message instead of being dropped.
 - `/clear` and resuming unfold the pane, as a new session starts unfolded.
 
+### Changed
+
+- The code reads plainly for the Anthropic plugin directory: only
+  `hooks/register.tsx` declares hooks and touches the engine, and the rest of the
+  mod works through a small set of ports. Behavior is unchanged.
+- The README states that pinboard answers only its own three tools, and for each
+  hook that anything else passes through unchanged.
+- The icon is re-encoded, pixel for pixel the same, so its compressed bytes no
+  longer spell a shell-looking word.
+
 ## [0.6.0] - 2026-11-09
 
 ### Added

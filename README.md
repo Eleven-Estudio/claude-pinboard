@@ -96,7 +96,9 @@ version.
   of yours) and uses the short title it returns. If that fails, the pin keeps a
   title taken from its first heading or line.
 - **Tools for Claude**: pinboard adds `pin`, `list_pins` and `unpin`. Claude
-  reads your pins only when it calls `list_pins`.
+  reads your pins only when it calls `list_pins`. pinboard answers only these
+  three (`mcp__pinboard__pin`, `mcp__pinboard__list_pins` and
+  `mcp__pinboard__unpin`) and never stands in for any other tool.
 
 ## What it hooks
 
@@ -104,21 +106,21 @@ pinboard never rewrites a message, never runs a shell command or program, and
 opens no network connection of its own. Its one model request, the optional
 title above, goes through your own Claude Code session.
 
-| Hook | What it does |
-|---|---|
-| `session.start` | Registers `/pin`, `/pins`, `/unpin` and the `pin`, `list_pins`, `unpin` tools. Loads your boards, and deletes session boards untouched for 90 days. |
-| `session.end` | After `/clear` or a resume, drops the old session's pins from the pane. They stay in the store with that session. |
-| `prompt.submit` | Loads the boards of the session in force if they are not loaded yet. Never changes your prompt. |
-| `command.run` `pin` | Pins Claude's last reply, to the session board or, with `project`, the project's. |
-| `command.run` `pins` | Shows the pane, or folds it to the band when it is up. |
-| `command.run` `unpin` | Removes one pin or a whole board. |
-| `tool.call` `pin` | Pins the text Claude gives it, when you ask Claude to pin something. |
-| `tool.call` `list_pins` | Returns your pins to Claude, when it calls the tool. |
-| `tool.call` `unpin` | Removes pins when Claude calls it. |
-| `ui.render` `Pane` | Draws the pane and handles ticks, folds, the `x` and the `↑` that scrolls the transcript back to a pin's reply. |
-| `ui.render` `AbovePrompt` | While the pane is minimized, draws one line with the pin count and the open pin. Otherwise leaves the band to the engine. |
-| `ui.close` | When you close the pane, folds it to the band instead of losing it. Never keeps the pane open. |
-| `ui.render` `AssistantMessage` | Draws the engine's own block, unchanged, and adds the hover pin control over it. |
+| Hook | What it does | Anything else |
+|---|---|---|
+| `session.start` | Registers `/pin`, `/pins`, `/unpin` and the `pin`, `list_pins`, `unpin` tools. Loads your boards, and deletes session boards untouched for 90 days. | Nothing else; the event passes on unchanged. |
+| `session.end` | After `/clear` or a resume, drops the old session's pins from the pane. They stay in the store with that session. | Nothing else; the event passes on unchanged. |
+| `prompt.submit` | Loads the boards of the session in force if they are not loaded yet. Never changes your prompt. | Every prompt passes through unchanged. |
+| `command.run` `pin` | Pins Claude's last reply, to the session board or, with `project`, the project's. | Only `/pin`; every other command passes through unchanged. |
+| `command.run` `pins` | Shows the pane, or folds it to the band when it is up. | Only `/pins`; every other command passes through unchanged. |
+| `command.run` `unpin` | Removes one pin or a whole board. | Only `/unpin`; every other command passes through unchanged. |
+| `tool.call` `pin` | Pins the text Claude gives it, when you ask Claude to pin something. | Only its own `pin` tool; every other tool call passes through unchanged. |
+| `tool.call` `list_pins` | Returns your pins to Claude, when it calls the tool. | Only its own `list_pins` tool; every other tool call passes through unchanged. |
+| `tool.call` `unpin` | Removes pins when Claude calls it. | Only its own `unpin` tool; every other tool call passes through unchanged. |
+| `ui.render` `Pane` | Draws the pane and handles ticks, folds, the `x` and the `↑` that scrolls the transcript back to a pin's reply. | Only pinboard's own pane; every other pane passes through unchanged. |
+| `ui.render` `AbovePrompt` | While the pane is minimized, draws one line with the pin count and the open pin. Otherwise leaves the band to the engine. | Draws nothing unless the pane is minimized; every other time the band passes through unchanged. |
+| `ui.close` | When you close the pane, folds it to the band instead of losing it. Never keeps the pane open. | Only pinboard's own pane; every other close, and any close by a plugin or an unload, passes through unchanged. |
+| `ui.render` `AssistantMessage` | Draws the engine's own block, unchanged, and adds the hover pin control over it. | Never changes the reply's text; the block passes through as the engine drew it. |
 
 ## Limits
 
