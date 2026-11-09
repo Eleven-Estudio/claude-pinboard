@@ -4,6 +4,19 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [0.6.1] - 2026-11-09
+
+### Fixed
+
+- `/pin` on a reply made of several blocks now keeps its `↑`: the block that
+  opens the reply is found, not only a reply of a single block.
+- Pinning while the pane is minimized gives one notice, not a toast and a text.
+- Ticking a checkbox after the pin changed no longer flips a line inside a code
+  block, and with repeated lines it flips the one nearest the one you pressed.
+- Minimizing or restoring the pane sets the fold only after the pane has closed
+  or opened, and a failure shows a message instead of being dropped.
+- `/clear` and resuming unfold the pane, as a new session starts unfolded.
+
 ## [0.6.0] - 2026-11-09
 
 ### Added
@@ -44,5 +57,6 @@ First public release.
 - Every change is written to disk before it shows in the pane. If the write
   fails, nothing changes and the command, tool or press reports the error.
 
+[0.6.1]: https://github.com/Eleven-Estudio/claude-pinboard/releases/tag/v0.6.1
 [0.6.0]: https://github.com/Eleven-Estudio/claude-pinboard/releases/tag/v0.6.0
 [0.5.0]: https://github.com/Eleven-Estudio/claude-pinboard/releases/tag/v0.5.0
