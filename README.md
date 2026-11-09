@@ -30,6 +30,24 @@ In the desktop app, where `/plugin` does not run: click **+** next to the prompt
 box, then **Plugins**, **Add marketplace** with `Eleven-Estudio/claude-pinboard`,
 then **Add plugin**.
 
+If the one-line install isn't available in your Claude Code, add the marketplace
+first:
+
+```
+/plugin marketplace add Eleven-Estudio/claude-pinboard
+/plugin install pinboard@eleven-estudio
+```
+
+### Update and uninstall
+
+```
+claude plugin update pinboard
+claude plugin uninstall pinboard
+```
+
+After an update, run `/reload-plugins` or restart Claude Code to load the new
+version.
+
 ## Use
 
 - **`/pin`** pins Claude's last reply. Give it a title with `/pin Login tests`.
