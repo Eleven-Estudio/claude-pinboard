@@ -2,6 +2,7 @@ import type { Pin } from '../../types'
 import { progress } from './checklist'
 import { byScope, label } from './labels'
 import { newest, resolveOpenId } from './open-pin'
+import type { Ports } from './ports'
 
 // Cells the pin emoji takes beyond its one character, kept free so the line
 // never wraps.
@@ -23,4 +24,14 @@ export function bandText(list: readonly Pin[], picked: string | null, columns: n
   const title = pin.title.length > room ? `${pin.title.slice(0, room - 1)}…` : pin.title
 
   return `${head}${title}${tail}`
+}
+
+// The minimized band's line, or undefined when the band is not ours to draw:
+// the pane is not minimized, or nothing is pinned.
+export async function bandLine(ports: Ports, columns: number): Promise<string | undefined> {
+  if (!(await ports.state.readIsMinimized())) return undefined
+  const list = await ports.state.readPins()
+  if (list.length === 0) return undefined
+
+  return bandText(list, await ports.state.readOpenPin(), columns)
 }

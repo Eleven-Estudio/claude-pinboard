@@ -1,9 +1,9 @@
-import type { CommandSpec, On } from 'claude-code'
+import type { CommandSpec } from 'claude-code'
 
 import { PANE, addPin, failure, isPaneUp, minimize, mutate, paneNote, restore, sync } from './lib/board'
-import { findReplySource } from './lib/replies'
 import { findByLabel, parseScoped, plural } from './lib/labels'
-import { readPins } from './lib/state'
+import type { Ports } from './lib/ports'
+import { findReplySource } from './lib/replies'
 
 const UNPIN_USAGE = 'Usage: /unpin s1 | p2 | session | project | all'
 
@@ -38,67 +38,67 @@ function lastReply(messages: readonly { role: string; text: string }[]): string 
   return ''
 }
 
-export function hookCommands(on: On): void {
-  on('command.run', { command: 'pin' }, async ($, e) => {
-    const { scope = 'session', rest } = parseScoped(e.args ?? '')
-    const body = lastReply(await $.session.messages())
-    if (body === '') return { text: 'There is no reply from Claude to pin yet.' }
+// What each command answers, as the text the person reads.
+
+export async function runPin(ports: Ports, args: string): Promise<string> {
+  const { scope = 'session', rest } = parseScoped(args)
+  const body = lastReply(await ports.session.messages())
+  if (body === '') return 'There is no reply from Claude to pin yet.'
+  try {
+    const source = findReplySource(body)
+    const pin = await addPin(ports, { scope, body, title: rest || undefined, source })
+
+    return `Pinned "${pin.title}" to the ${scope} board.${paneNote(pin)}`
+  } catch (error) {
+    return failure(error)
+  }
+}
+
+export async function runPins(ports: Ports): Promise<string> {
+  await sync(ports)
+  if (await isPaneUp(ports)) {
+    if ((await ports.state.readPins()).length === 0) {
+      await ports.ui.close(PANE)
+
+      return 'Pinned pane closed.'
+    }
+    await minimize(ports)
+
+    return 'Pinned pane minimized to a band above the prompt. /pins brings it back.'
+  }
+  const isPlaced = await restore(ports)
+
+  return isPlaced ? 'Pinned pane shown.' : 'The pinned pane could not be shown here.'
+}
+
+export async function runUnpin(ports: Ports, args: string): Promise<string> {
+  const arg = args.trim().toLowerCase()
+  if (arg === '') return UNPIN_USAGE
+  await sync(ports)
+  const list = await ports.state.readPins()
+  if (list.length === 0) return 'Nothing is pinned.'
+
+  if (arg === 'all' || arg === 'session' || arg === 'project') {
+    const removed = new Set(list.filter(pin => arg === 'all' || pin.scope === arg).map(pin => pin.id))
     try {
-      const source = findReplySource(body)
-      const pin = await addPin($, { scope, body, title: rest || undefined, source })
-
-      return { text: `Pinned "${pin.title}" to the ${scope} board.${paneNote(pin)}` }
+      await mutate(ports, current => current.filter(pin => !removed.has(pin.id)))
     } catch (error) {
-      return { text: failure(error) }
-    }
-  })
-
-  on('command.run', { command: 'pins' }, async $ => {
-    await sync($)
-    if (await isPaneUp($)) {
-      if ((await readPins($)).length === 0) {
-        await $.ui.close({ id: PANE })
-
-        return { text: 'Pinned pane closed.' }
-      }
-      await minimize($)
-
-      return { text: 'Pinned pane minimized to a band above the prompt. /pins brings it back.' }
-    }
-    const isPlaced = await restore($)
-
-    return { text: isPlaced ? 'Pinned pane shown.' : 'The pinned pane could not be shown here.' }
-  })
-
-  on('command.run', { command: 'unpin' }, async ($, e) => {
-    const arg = (e.args ?? '').trim().toLowerCase()
-    if (arg === '') return { text: UNPIN_USAGE }
-    await sync($)
-    const list = await readPins($)
-    if (list.length === 0) return { text: 'Nothing is pinned.' }
-
-    if (arg === 'all' || arg === 'session' || arg === 'project') {
-      const removed = new Set(list.filter(pin => arg === 'all' || pin.scope === arg).map(pin => pin.id))
-      try {
-        await mutate($, current => current.filter(pin => !removed.has(pin.id)))
-      } catch (error) {
-        return { text: failure(error) }
-      }
-
-      return { text: `Removed ${plural(removed.size)}.` }
+      return failure(error)
     }
 
-    const target = findByLabel(list, arg)
-    if (target === 'ambiguous') {
-      return { text: `Both boards have a pin ${arg}: use s${arg} for the session's or p${arg} for the project's.` }
-    }
-    if (target === undefined) return { text: `There is no pin ${arg}. ${UNPIN_USAGE}` }
-    try {
-      await mutate($, current => current.filter(pin => pin.id !== target.id))
-    } catch (error) {
-      return { text: failure(error) }
-    }
+    return `Removed ${plural(removed.size)}.`
+  }
 
-    return { text: `Removed "${target.title}".` }
-  })
+  const target = findByLabel(list, arg)
+  if (target === 'ambiguous') {
+    return `Both boards have a pin ${arg}: use s${arg} for the session's or p${arg} for the project's.`
+  }
+  if (target === undefined) return `There is no pin ${arg}. ${UNPIN_USAGE}`
+  try {
+    await mutate(ports, current => current.filter(pin => pin.id !== target.id))
+  } catch (error) {
+    return failure(error)
+  }
+
+  return `Removed "${target.title}".`
 }

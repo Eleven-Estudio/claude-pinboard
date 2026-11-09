@@ -1,7 +1,6 @@
-import type { EngineInterface } from 'claude-code'
-
 import type { Pin } from '../../types'
 import { CHECK } from './checklist'
+import type { Ports } from './ports'
 
 // A short title for a pin made from a reply is asked of a small model; the
 // quick guess from titleFrom stays if it fails.
@@ -55,8 +54,8 @@ export function bodyBelowTitle(pin: Pin): string {
 }
 
 // Asks the small model for a title; '' when it does not answer.
-export async function requestTitle($: EngineInterface, body: string): Promise<string> {
-  const reply = await $.model.complete({
+export async function requestTitle(ports: Ports, body: string): Promise<string> {
+  const text = await ports.model.complete({
     model: TITLE_MODEL,
     prompt: `${TITLE_PROMPT}${body.slice(0, TITLE_BODY_CHARS)}\n</note>`,
     maxTokens: TITLE_MAX_TOKENS,
@@ -64,5 +63,5 @@ export async function requestTitle($: EngineInterface, body: string): Promise<st
     timeoutMs: TITLE_TIMEOUT_MS,
   })
 
-  return reply.isAnswered ? cleanTitle(reply.text) : ''
+  return cleanTitle(text)
 }
