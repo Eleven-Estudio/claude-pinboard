@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noEmit": true,
+    "moduleResolution": "bundler",
+    "jsx": "react",
+    "jsxFactory": "h",
+    "jsxFragmentFactory": "Fragment",
+    "types": [],
+    "lib": ["es2023"],
+    "target": "es2023",
+    "module": "esnext",
+    "skipLibCheck": true
+  },
+  "include": [".claude-plugin/types", "hooks", "types", "tests"]
+}
