@@ -1,6 +1,6 @@
 {
   "name": "pinboard",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Pin notes and checklists in a side pane next to the chat, so they don't scroll away",
   "author": { "name": "Eleven Estudio", "url": "https://elevenestudio.com" },
   "homepage": "https://github.com/Eleven-Estudio/claude-pinboard",

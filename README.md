@@ -59,6 +59,10 @@ version.
 - Click **`↑`** on a pin to jump back to the reply it came from, even far up the
   conversation. A pin made from an older session, or whose reply was compacted
   away, has nothing to jump to.
+- **Minimize** the pane with the `–` at its top, its close mark or ctrl+x x: it
+  folds to one line above the prompt (`📌 3 pinned · S1 Login tests 2/5`). Click
+  that line, or run `/pins`, to bring the pane back. While it is folded, a new
+  pin shows in the line and a toast, and the pane stays closed.
 - Pins are **cards**: one is open at a time, the rest fold to one line with their
   progress (`▸ S2 · Login tests  2/5`). Click a card's title to open it.
 
@@ -78,7 +82,7 @@ version.
 |---|---|
 | `/pin [title]` | Pin Claude's last reply to the session board |
 | `/pin project [title]` | Pin it to the project board |
-| `/pins` | Show the pane again |
+| `/pins` | Fold the pane to a one-line band above the prompt, or show it again |
 | `/unpin s2` · `/unpin p1` | Remove one pin |
 | `/unpin session` · `/unpin project` · `/unpin all` | Clear a board, or both |
 
@@ -106,12 +110,14 @@ title above, goes through your own Claude Code session.
 | `session.end` | After `/clear` or a resume, drops the old session's pins from the pane. They stay in the store with that session. |
 | `prompt.submit` | Loads the boards of the session in force if they are not loaded yet. Never changes your prompt. |
 | `command.run` `pin` | Pins Claude's last reply, to the session board or, with `project`, the project's. |
-| `command.run` `pins` | Shows the pane. |
+| `command.run` `pins` | Shows the pane, or folds it to the band when it is up. |
 | `command.run` `unpin` | Removes one pin or a whole board. |
 | `tool.call` `pin` | Pins the text Claude gives it, when you ask Claude to pin something. |
 | `tool.call` `list_pins` | Returns your pins to Claude, when it calls the tool. |
 | `tool.call` `unpin` | Removes pins when Claude calls it. |
 | `ui.render` `Pane` | Draws the pane and handles ticks, folds, the `x` and the `↑` that scrolls the transcript back to a pin's reply. |
+| `ui.render` `AbovePrompt` | While the pane is minimized, draws one line with the pin count and the open pin. Otherwise leaves the band to the engine. |
+| `ui.close` | When you close the pane, folds it to the band instead of losing it. Never keeps the pane open. |
 | `ui.render` `AssistantMessage` | Draws the engine's own block, unchanged, and adds the hover pin control over it. |
 
 ## Limits

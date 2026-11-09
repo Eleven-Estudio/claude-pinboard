@@ -4,6 +4,22 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [0.6.0] - 2026-11-09
+
+### Added
+
+- A `↑` on each pin that scrolls the conversation back to the reply it came
+  from: the block you pinned, the reply `/pin` took, or the moment Claude pinned
+  it. When that reply is gone, you get a short message instead.
+- Minimize: the `–` at the top of the pane, its close mark (ctrl+x x) and `/pins`
+  fold the pane to one line above the prompt with the pin count and the open
+  pin. Click the line, or run `/pins`, to bring the pane back.
+
+### Changed
+
+- `/pins` folds the pane when it is up and shows it when it is not.
+- While minimized, a new pin leaves the pane closed and says so with a toast.
+
 ## [0.5.0] - 2026-11-09
 
 First public release.
@@ -28,4 +44,5 @@ First public release.
 - Every change is written to disk before it shows in the pane. If the write
   fails, nothing changes and the command, tool or press reports the error.
 
+[0.6.0]: https://github.com/Eleven-Estudio/claude-pinboard/releases/tag/v0.6.0
 [0.5.0]: https://github.com/Eleven-Estudio/claude-pinboard/releases/tag/v0.5.0
