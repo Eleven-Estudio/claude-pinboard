@@ -51,3 +51,17 @@ test('a press toggles the line it was drawn from, even after the body moved', as
   expect(toggleTask('- [ ] Log in', 1, drawn)).toBe('- [ ] Log in')
   expect(toggleTask('- [ ] Log in\n- [ ] Refund', 1, drawn)).toBe('- [ ] Log in\n- [ ] Refund')
 })
+
+test('a task line in a code fence is never toggled', async () => {
+  const body = '- [ ] Pay\n```\n- [ ] Log in\n```'
+
+  expect(toggleTask(body, 0, '- [ ] Log in')).toBe(body)
+})
+
+test('with repeated lines, the one nearest the pressed place is toggled', async () => {
+  const body = '- [ ] Check\n- [ ] Other\n- [ ] Check\n- [ ] Other\n- [ ] Check'
+
+  // Drawn at line 3, where a different task now stands: the nearest copies are 2 and 4.
+  expect(toggleTask(body, 3, '- [ ] Check')).toBe('- [ ] Check\n- [ ] Other\n- [x] Check\n- [ ] Other\n- [ ] Check')
+  expect(toggleTask(body, 4, '- [ ] Check')).toBe('- [ ] Check\n- [ ] Other\n- [ ] Check\n- [ ] Other\n- [x] Check')
+})

@@ -60,15 +60,22 @@ function taskKey(line: string): string | undefined {
 
 // Flips the box of the task line the person pressed. The body may have changed
 // since it was drawn, so `raw` (that line as drawn) is checked: the line at
-// `index` if it still is that task, else the first line that is, else none.
+// `index` if it still is that task, else the nearest line that is, else none.
+// Only lines the pane draws as checkboxes count, so a task-shaped line in a
+// code fence is never flipped.
 export function toggleTask(body: string, index: number, raw: string): string {
   const key = taskKey(raw)
   if (key === undefined) return body
-  const lines = body.split('\n')
-  if (taskKey(lines[index] ?? '') === key) return toggleLine(body, index)
-  const found = lines.findIndex(line => taskKey(line) === key)
+  const lines = segments(body)
+    .flatMap(segment => (segment.kind === 'check' ? [segment.line] : []))
+    .filter(line => taskKey(body.split('\n')[line] ?? '') === key)
+  if (lines.includes(index)) return toggleLine(body, index)
+  let nearest: number | undefined
+  for (const line of lines) {
+    if (nearest === undefined || Math.abs(line - index) < Math.abs(nearest - index)) nearest = line
+  }
 
-  return found === -1 ? body : toggleLine(body, found)
+  return nearest === undefined ? body : toggleLine(body, nearest)
 }
 
 // `2/5` for a body with task lines, '' for one without.
