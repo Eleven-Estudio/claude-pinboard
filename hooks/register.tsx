@@ -2,7 +2,9 @@ import type { Register } from 'claude-code'
 
 import { commandSpecs, hookCommands } from './commands'
 import { forgetSession, startBoards, sync } from './lib/board'
+import { hookPaneClose } from './pane-close'
 import { hookTools, toolSpecs } from './tools'
+import { hookBand } from './views/band'
 import { hookPane } from './views/pane'
 import { hookReplyControl } from './views/reply-control'
 
@@ -47,4 +49,6 @@ export const register: Register = on => {
   hookTools(on)
   hookReplyControl(on)
   hookPane(on)
+  hookBand(on)
+  hookPaneClose(on)
 }

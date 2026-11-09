@@ -9,7 +9,7 @@ export function resolveOpenId(picked: string | null, list: readonly Pin[]): stri
   return newest(list)?.id ?? ''
 }
 
-function newest(list: readonly Pin[]): Pin | undefined {
+export function newest(list: readonly Pin[]): Pin | undefined {
   return list.reduce<Pin | undefined>(
     (latest, pin) => (latest === undefined || pin.pinnedAt >= latest.pinnedAt ? pin : latest),
     undefined,

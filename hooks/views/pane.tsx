@@ -1,7 +1,7 @@
 import type { On } from 'claude-code'
 
 import type { Pin } from '../../types'
-import { PANE, failure, mutate } from '../lib/board'
+import { PANE, failure, minimize, mutate } from '../lib/board'
 import { progress, segments, toggleTask } from '../lib/checklist'
 import { jumpTo } from '../lib/jump'
 import { byScope, label } from '../lib/labels'
@@ -112,6 +112,9 @@ export function hookPane(on: On): void {
 
     return (
       <Box flexDirection="column" gap={1}>
+        <Box flexDirection="row" justifyContent="flex-end">
+          <Button key="minimize" label="–" plain dimColor onPress={() => void minimize($)} />
+        </Box>
         {boards.map(group => (
           <Box flexDirection="column">
             <Text dimColor bold>

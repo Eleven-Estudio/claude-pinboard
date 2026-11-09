@@ -17,8 +17,9 @@ export function hookReplyControl(on: On): void {
     const { Box, Text, Button } = $.ui.resolve(e)
     const pinAs = async (scope: PinScope) => {
       try {
-        const { title } = await addPin($, { scope, body: text, source: e.requestId })
-        $.ui.toast(`Pinned "${title}" to the ${scope} board.`)
+        const { title, isMinimized } = await addPin($, { scope, body: text, source: e.requestId })
+        // Minimized, the pin already toasted.
+        if (!isMinimized) $.ui.toast(`Pinned "${title}" to the ${scope} board.`)
       } catch (error) {
         $.ui.toast(failure(error))
       }

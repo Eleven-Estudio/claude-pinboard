@@ -2,7 +2,7 @@ import type { EngineInterface } from 'claude-code'
 
 import type { Pin, PinScope } from '../../types'
 import { byScope } from './labels'
-import { readPins, setOpenPin, updatePins } from './state'
+import { readIsMinimized, readPins, setIsMinimized, setOpenPin, updatePins } from './state'
 import { requestTitle, titleFrom } from './title'
 
 export const PANE = 'pinboard'
@@ -75,6 +75,23 @@ export async function openPane($: EngineInterface): Promise<boolean> {
   return opened.isPlaced
 }
 
+export async function isPaneUp($: EngineInterface): Promise<boolean> {
+  return (await $.ui.panes()).some(pane => pane.id === PANE)
+}
+
+// Folds the pane to the band above the prompt.
+export async function minimize($: EngineInterface): Promise<void> {
+  await setIsMinimized($, true)
+  await $.ui.close({ id: PANE })
+}
+
+// Puts the pane back where the band was.
+export async function restore($: EngineInterface): Promise<boolean> {
+  await setIsMinimized($, false)
+
+  return openPane($)
+}
+
 // Everything that reads or writes the boards runs one task at a time, so a
 // change never starts from a list that a load has not finished replacing, and
 // two quick presses both land.
@@ -105,9 +122,8 @@ async function syncNow($: EngineInterface): Promise<void> {
   // Only now do the pins in $.state match these keys.
   loaded = { session: id, project: root }
 
-  if (sessionPins.length + projectPins.length > 0) {
-    const isUp = (await $.ui.panes()).some(pane => pane.id === PANE)
-    if (!isUp) void openPane($)
+  if (sessionPins.length + projectPins.length > 0 && !(await readIsMinimized($))) {
+    if (!(await isPaneUp($))) void openPane($)
   }
 }
 
@@ -191,7 +207,9 @@ export function mutate($: EngineInterface, change: (list: readonly Pin[]) => Pin
 // close never undoes a change that was saved.
 async function closePaneWhenEmpty($: EngineInterface): Promise<void> {
   try {
-    if ((await readPins($)).length === 0) await $.ui.close({ id: PANE })
+    if ((await readPins($)).length > 0) return
+    await setIsMinimized($, false)
+    await $.ui.close({ id: PANE })
   } catch {
     // The pane stays until the person closes it.
   }
@@ -210,7 +228,7 @@ export type PinRequest = {
 export async function addPin(
   $: EngineInterface,
   request: PinRequest,
-): Promise<{ title: string; isPlaced: boolean }> {
+): Promise<{ title: string; isPlaced: boolean; isMinimized: boolean }> {
   const { scope, body } = request
   if (body.length > MAX_BODY_CHARS) {
     throw new BoardError(
@@ -246,7 +264,14 @@ export async function addPin(
   await setOpenPin($, openId)
   if (isNew && request.title === undefined) suggestTitle($, openId, title, body)
 
-  return { title, isPlaced: await openPane($) }
+  // Minimized, a new pin does not bring the pane back: the band shows it.
+  if (await readIsMinimized($)) {
+    $.ui.toast(`Pinned "${title}" to the ${scope} board.`)
+
+    return { title, isPlaced: true, isMinimized: true }
+  }
+
+  return { title, isPlaced: await openPane($), isMinimized: false }
 }
 
 function newId(): string {

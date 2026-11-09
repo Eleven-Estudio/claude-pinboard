@@ -15,6 +15,8 @@ const pins = atom({ plugin: 'pinboard', key: 'pins' } as const, [], {
 // is open then), '' when they closed every card.
 const openPin = atom({ plugin: 'pinboard', key: 'openPin' } as const, null)
 
+const isMinimized = atom({ plugin: 'pinboard', key: 'isMinimized' } as const, false)
+
 export function readPins($: EngineInterface): Promise<Pin[]> {
   return read($, pins)
 }
@@ -29,4 +31,12 @@ export function readOpenPin($: EngineInterface): Promise<string | null> {
 
 export function setOpenPin($: EngineInterface, id: string): Promise<unknown> {
   return update($, openPin, () => id)
+}
+
+export function readIsMinimized($: EngineInterface): Promise<boolean> {
+  return read($, isMinimized)
+}
+
+export function setIsMinimized($: EngineInterface, value: boolean): Promise<unknown> {
+  return update($, isMinimized, () => value)
 }

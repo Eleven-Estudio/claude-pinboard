@@ -18,6 +18,8 @@ declare module 'claude-code' {
   interface PluginState {
     // openPin: the one card shown open; null until the person picks one (the
     // newest pin is open then), '' when they closed every card.
-    pinboard: { pins: Shaped<Pin[]>; openPin: string | null }
+    // isMinimized: the pane is folded to a one-line band above the prompt. It
+    // belongs to the running session, so a new one starts unminimized.
+    pinboard: { pins: Shaped<Pin[]>; openPin: string | null; isMinimized: boolean }
   }
 }

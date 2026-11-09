@@ -1,6 +1,6 @@
 import type { CommandSpec, On } from 'claude-code'
 
-import { WAITING, addPin, failure, mutate, openPane, sync } from './lib/board'
+import { PANE, WAITING, addPin, failure, isPaneUp, minimize, mutate, restore, sync } from './lib/board'
 import { findReplySource } from './lib/replies'
 import { findByLabel, parseScoped, plural } from './lib/labels'
 import { readPins } from './lib/state'
@@ -16,7 +16,7 @@ export const commandSpecs: CommandSpec[] = [
   },
   {
     name: 'pins',
-    description: 'Show the pinned notes pane',
+    description: 'Show the pinned notes pane, or fold it to a band above the prompt',
     immediate: true,
   },
   {
@@ -55,7 +55,17 @@ export function hookCommands(on: On): void {
 
   on('command.run', { command: 'pins' }, async $ => {
     await sync($)
-    const isPlaced = await openPane($)
+    if (await isPaneUp($)) {
+      if ((await readPins($)).length === 0) {
+        await $.ui.close({ id: PANE })
+
+        return { text: 'Pinned pane closed.' }
+      }
+      await minimize($)
+
+      return { text: 'Pinned pane minimized to a band above the prompt. /pins brings it back.' }
+    }
+    const isPlaced = await restore($)
 
     return { text: isPlaced ? 'Pinned pane shown.' : 'The pinned pane could not be shown here.' }
   })

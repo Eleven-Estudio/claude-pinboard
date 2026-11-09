@@ -124,3 +124,40 @@ test('/pin remembers the reply it pins once that reply was drawn, and none other
   expect(pins[0]?.title).toBe('Before')
   expect(pins[0]?.source).toBe('m-deploy')
 })
+
+test('/pins folds the pane when it is up, and brings it back when it is not', async ($, on) => {
+  const { panes, toasts } = engine(on)
+  await $.session.start(START)
+  await $.tool.call(pinCall('Tests', 'a'))
+  expect(panes.has('pinboard')).toBe(true)
+
+  expect((await run($, 'pins')).text).toContain('minimized')
+  expect(panes.has('pinboard')).toBe(false)
+
+  // Pinned while minimized: the pane stays folded and a toast confirms.
+  await $.tool.call(pinCall('More', 'b'))
+  expect(panes.has('pinboard')).toBe(false)
+  expect(toasts).toContain('Pinned "More" to the session board.')
+
+  expect((await run($, 'pins')).text).toBe('Pinned pane shown.')
+  expect(panes.has('pinboard')).toBe(true)
+})
+
+test('the pane does not open at start while minimized, and removing the last pin clears it', async ($, on) => {
+  const { panes } = engine(on, {
+    'session:s1': { pins: [pinOf('Tests', 'a')], updatedAt: Date.now() },
+  })
+  await $.session.start(START)
+  expect(panes.has('pinboard')).toBe(true)
+
+  await run($, 'pins')
+  // A /clear and the next load of the same board must leave it folded.
+  await $.session.end({ reason: 'clear' } as Parameters<typeof $.session.end>[0])
+  await run($, 'unpin', 'nothing-yet')
+  expect(panes.has('pinboard')).toBe(false)
+
+  // Removing the last pin forgets the fold: the next pin opens the pane.
+  await run($, 'unpin', 's1')
+  await $.tool.call(pinCall('Fresh', 'b'))
+  expect(panes.has('pinboard')).toBe(true)
+})

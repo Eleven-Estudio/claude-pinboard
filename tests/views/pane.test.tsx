@@ -110,3 +110,19 @@ test('the arrow tells the person when the reply cannot be reached', async ($, on
   expect(toasts).toEqual(['That reply is no longer in the view.'])
   await ui.unmount()
 })
+
+test('the dash folds the pane to the band', async ($, on) => {
+  const { panes } = engine(on)
+  await $.session.start(START)
+  await $.tool.call(pinCall('Tests', 'a'))
+  expect(panes.has('pinboard')).toBe(true)
+
+  const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
+  await ui.press({ key: 'minimize' })
+  await ui.unmount()
+  expect(panes.has('pinboard')).toBe(false)
+
+  // Minimized: a new pin says so with a toast and leaves the pane closed.
+  await $.tool.call(pinCall('More', 'b'))
+  expect(panes.has('pinboard')).toBe(false)
+})
