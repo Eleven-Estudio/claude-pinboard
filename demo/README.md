@@ -3,7 +3,7 @@
 A clean, repeatable setup for recording pinboard without showing anything of your
 own: `start.sh` runs Claude Code with its own config directory (no settings,
 CLAUDE.md, plugins, MCP servers, history or sessions of yours), in a throwaway
-copy of a tiny project under `/tmp`, with pinboard loaded from this checkout.
+copy of a tiny project in your temp folder, with pinboard loaded from this checkout.
 
 ## Before you record
 
@@ -26,6 +26,12 @@ with a claude.ai account, its connectors may still load; just don't open them.
 Do one rehearsal with [SCRIPT.md](SCRIPT.md), then `/unpin all`, `/exit`, and
 start again with `demo/start.sh` for the take.
 
+## The bug is on purpose
+
+`project/checkout.js` has a bug the demo needs: `applyCode` divides by 10 instead
+of 100. Don't fix it, and don't mark it in the file, because Claude reads that
+file during the recording. [SCRIPT.md](SCRIPT.md) says where it comes in.
+
 ## Record and convert
 
 1. **⌘⇧5 → Record Selected Portion**, framed on the terminal. Leave out the
@@ -42,5 +48,5 @@ comes out too large.
 
 ## Clean up
 
-`rm -rf ~/.pinboard-demo /tmp/pinboard-demo` removes the demo config (and its
-login) and the project copy.
+`rm -rf ~/.pinboard-demo "${TMPDIR:-/tmp}/pinboard-demo-$(id -u)"` removes the demo
+config (and its login) and the project copy.
