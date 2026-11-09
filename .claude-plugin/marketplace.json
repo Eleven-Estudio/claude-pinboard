@@ -1,0 +1,12 @@
+{
+  "name": "eleven-estudio",
+  "owner": { "name": "Eleven Estudio", "url": "https://elevenestudio.com" },
+  "description": "Claude Code plugins by Eleven Estudio",
+  "plugins": [
+    {
+      "name": "pinboard",
+      "source": "./",
+      "description": "Pin notes and checklists in a side pane next to the chat, so they don't scroll away"
+    }
+  ]
+}

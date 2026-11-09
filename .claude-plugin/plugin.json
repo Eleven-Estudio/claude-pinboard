@@ -1,0 +1,11 @@
+{
+  "name": "pinboard",
+  "version": "0.4.0",
+  "description": "Pin notes and checklists in a side pane next to the chat, so they don't scroll away",
+  "author": { "name": "Eleven Estudio", "url": "https://elevenestudio.com" },
+  "homepage": "https://github.com/Eleven-Estudio/claude-pinboard",
+  "repository": "https://github.com/Eleven-Estudio/claude-pinboard",
+  "license": "MIT",
+  "keywords": ["pin", "notes", "checklist", "side-pane", "mod"],
+  "types": "./types/index.d.ts"
+}

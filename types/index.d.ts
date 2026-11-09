@@ -1,0 +1,19 @@
+export type PinScope = 'session' | 'project'
+
+export type Pin = {
+  id: string
+  title: string
+  // Markdown. Lines written `- [ ] item` / `- [x] item` are drawn as
+  // checkboxes the person can tick; ticking rewrites the line here.
+  body: string
+  scope: PinScope
+  pinnedAt: number
+}
+
+declare module 'claude-code' {
+  interface PluginState {
+    // openPin: the one card shown open; null until the person picks one (the
+    // newest pin is open then), '' when they closed every card.
+    pinboard: { pins: Shaped<Pin[]>; openPin: string | null }
+  }
+}
