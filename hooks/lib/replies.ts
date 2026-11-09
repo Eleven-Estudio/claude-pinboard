@@ -14,13 +14,31 @@ export function rememberReply(requestId: string, text: string): void {
   seen.set(requestId, text)
 }
 
-// The most recent instance whose text is exactly this reply, if any.
+// A block shorter than this is not matched inside a longer reply: "Done." or
+// "Yes" would match almost any reply and point the jump at the wrong place.
+const MIN_BLOCK_CHARS = 20
+
+// The instance a pinned reply came from. The session's messages join a reply's
+// text blocks while each block is drawn on its own, so a block matches when it
+// is the whole reply or (past MIN_BLOCK_CHARS) a part of it. The block that
+// opens earliest in the reply wins, so the jump lands at its start; among
+// identical blocks, the most recent.
 export function findReplySource(text: string): string | undefined {
-  const wanted = text.trim()
+  const reply = text.trim()
   let found: string | undefined
-  for (const [requestId, seenText] of seen) {
-    if (seenText === wanted) found = requestId
+  let foundAt = Infinity
+  for (const [requestId, block] of seen) {
+    const at = block === reply ? 0 : block.length >= MIN_BLOCK_CHARS ? reply.indexOf(block) : -1
+    if (at !== -1 && at <= foundAt) {
+      found = requestId
+      foundAt = at
+    }
   }
 
   return found
+}
+
+// For tests: module state outlives a test file's engine.
+export function resetReplies(): void {
+  seen.clear()
 }
