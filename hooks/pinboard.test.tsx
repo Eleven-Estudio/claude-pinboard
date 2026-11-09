@@ -1,7 +1,7 @@
 import { expect, mock, test } from 'claude-code/testing'
 import type { TestBody } from 'claude-code/testing'
 
-import { bodyBelowTitle, titleFrom } from './register'
+import { bodyBelowTitle, titleFrom } from './lib/title'
 
 const PANE = {
   plugin: 'pinboard',
