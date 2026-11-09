@@ -76,8 +76,8 @@ then **Add plugin**.
 ## What it hooks
 
 pinboard never rewrites a message, never runs a shell command or program, and
-contacts no network host. The one request it makes is the optional title below,
-sent through your own Claude Code session.
+opens no network connection of its own. Its one model request, the optional
+title above, goes through your own Claude Code session.
 
 | Hook | What it does |
 |---|---|
@@ -122,7 +122,8 @@ claude plugin test .
 claude --plugin-dir .
 ```
 
-See [CONTRIBUTING](CONTRIBUTING.md) for the typecheck and commit style.
+See [CONTRIBUTING](CONTRIBUTING.md) for the typecheck and commit style, and
+[demo/](demo/README.md) to record a demo in a clean, isolated session.
 
 ## License
 
