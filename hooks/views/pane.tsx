@@ -2,8 +2,9 @@ import type { On } from 'claude-code'
 
 import type { Pin } from '../../types'
 import { PANE, failure, mutate } from '../lib/board'
-import { progress, segments, toggleLine } from '../lib/checklist'
+import { progress, segments, toggleTask } from '../lib/checklist'
 import { byScope, label } from '../lib/labels'
+import { resolveOpenId } from '../lib/open-pin'
 import { readOpenPin, readPins, setOpenPin } from '../lib/state'
 import { bodyBelowTitle } from '../lib/title'
 
@@ -33,13 +34,7 @@ export function hookPane(on: On): void {
     ].filter(group => group.board.length > 0)
 
     // One card open at a time: the one picked, else the newest pin.
-    const picked = await readOpenPin($)
-    const newest = list.reduce<Pin | undefined>(
-      (latest, pin) => (latest === undefined || pin.pinnedAt >= latest.pinnedAt ? pin : latest),
-      undefined,
-    )
-    const openId =
-      picked === '' ? '' : picked !== null && list.some(pin => pin.id === picked) ? picked : (newest?.id ?? '')
+    const openId = resolveOpenId(await readOpenPin($), list)
 
     // A press that cannot be saved leaves the pane as it was and says why.
     const change = (edit: (current: readonly Pin[]) => Pin[]) => {
@@ -90,7 +85,7 @@ export function hookPane(on: On): void {
                 onPress={() =>
                   change(current =>
                     current.map(one =>
-                      one.id === pin.id ? { ...one, body: toggleLine(one.body, segment.line) } : one,
+                      one.id === pin.id ? { ...one, body: toggleTask(one.body, segment.line, segment.raw) } : one,
                     ),
                   )
                 }

@@ -4,7 +4,7 @@ const FENCE = /^\s*(```|~~~)/
 
 export type Segment =
   | { kind: 'markdown'; text: string }
-  | { kind: 'check'; line: number; text: string; isDone: boolean; indent: number }
+  | { kind: 'check'; line: number; raw: string; text: string; isDone: boolean; indent: number }
 
 // Splits a body into markdown runs and task lines. Task lines inside a code
 // fence stay markdown.
@@ -30,6 +30,7 @@ export function segments(body: string): Segment[] {
     out.push({
       kind: 'check',
       line: index,
+      raw: line,
       text: (match[3] ?? '').replace(/\*\*|__|`/g, ''),
       isDone: match[2] !== ' ',
       indent: lead.length - lead.trimStart().length,
@@ -48,6 +49,26 @@ export function toggleLine(body: string, index: number): string {
   lines[index] = `${match[1]}[${match[2] === ' ' ? 'x' : ' '}] ${match[3]}`
 
   return lines.join('\n')
+}
+
+// What names a task line whether or not it is ticked: its marker and text.
+function taskKey(line: string): string | undefined {
+  const match = CHECK.exec(line)
+
+  return match === null ? undefined : `${match[1]}${match[3]}`
+}
+
+// Flips the box of the task line the person pressed. The body may have changed
+// since it was drawn, so `raw` (that line as drawn) is checked: the line at
+// `index` if it still is that task, else the first line that is, else none.
+export function toggleTask(body: string, index: number, raw: string): string {
+  const key = taskKey(raw)
+  if (key === undefined) return body
+  const lines = body.split('\n')
+  if (taskKey(lines[index] ?? '') === key) return toggleLine(body, index)
+  const found = lines.findIndex(line => taskKey(line) === key)
+
+  return found === -1 ? body : toggleLine(body, found)
 }
 
 // `2/5` for a body with task lines, '' for one without.
