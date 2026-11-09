@@ -1,7 +1,7 @@
 import type { On, ToolSpec } from 'claude-code'
 
 import type { Pin, PinScope } from '../types'
-import { WAITING, addPin, mutate, sync } from './lib/board'
+import { WAITING, addPin, failure, mutate, sync } from './lib/board'
 import { byScope, label, plural } from './lib/labels'
 import { readPins } from './lib/state'
 
@@ -77,9 +77,13 @@ export function hookTools(on: On): void {
     if (body === '') return { deny: 'markdown is required and cannot be empty.' }
     const scope = asScope(input.scope) ?? 'session'
     const given = asString(input.title).trim()
-    const { title, isPlaced } = await addPin($, { scope, body, title: given || undefined })
+    try {
+      const { title, isPlaced } = await addPin($, { scope, body, title: given || undefined })
 
-    return { result: `Pinned "${title}" to the ${scope} board.${isPlaced ? '' : WAITING}` }
+      return { result: `Pinned "${title}" to the ${scope} board.${isPlaced ? '' : WAITING}` }
+    } catch (error) {
+      return { deny: failure(error) }
+    }
   })
 
   on('tool.call', { tool: TOOL_LIST }, async $ => {
@@ -100,7 +104,11 @@ export function hookTools(on: On): void {
 
     if (input.all === true) {
       const removed = new Set(list.filter(onBoard).map(pin => pin.id))
-      await mutate($, current => current.filter(pin => !removed.has(pin.id)))
+      try {
+        await mutate($, current => current.filter(pin => !removed.has(pin.id)))
+      } catch (error) {
+        return { deny: failure(error) }
+      }
 
       return { result: `Removed ${plural(removed.size)}.` }
     }
@@ -110,7 +118,11 @@ export function hookTools(on: On): void {
     if (removed.size === 0) {
       return { deny: `No pin is titled "${title}". Pinned: ${list.map(pin => pin.title).join(', ') || 'nothing'}.` }
     }
-    await mutate($, current => current.filter(pin => !removed.has(pin.id)))
+    try {
+      await mutate($, current => current.filter(pin => !removed.has(pin.id)))
+    } catch (error) {
+      return { deny: failure(error) }
+    }
 
     return { result: `Removed "${title}".` }
   })

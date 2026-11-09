@@ -1,7 +1,7 @@
 import type { On } from 'claude-code'
 
 import type { Pin } from '../../types'
-import { PANE, mutate } from '../lib/board'
+import { PANE, failure, mutate } from '../lib/board'
 import { progress, segments, toggleLine } from '../lib/checklist'
 import { byScope, label } from '../lib/labels'
 import { readOpenPin, readPins, setOpenPin } from '../lib/state'
@@ -41,8 +41,9 @@ export function hookPane(on: On): void {
     const openId =
       picked === '' ? '' : picked !== null && list.some(pin => pin.id === picked) ? picked : (newest?.id ?? '')
 
+    // A press that cannot be saved leaves the pane as it was and says why.
     const change = (edit: (current: readonly Pin[]) => Pin[]) => {
-      void mutate($, edit)
+      mutate($, edit).catch((error: unknown) => $.ui.toast(failure(error)))
     }
 
     const drawPin = (pin: Pin, index: number) => {

@@ -30,21 +30,26 @@ const USAGE = {
 // plugin's store is a Map the test reads back, standing for the file on disk.
 function engine(on: Parameters<TestBody>[1], stored: Record<string, unknown> = {}) {
   const disk = new Map<string, unknown>(Object.entries(stored))
+  const toasts: string[] = []
+  const store = { isBroken: false }
+  const guard = () => {
+    if (store.isBroken) throw new Error('disk full')
+  }
   on('store.get', (_, e) => ({ value: disk.get(e.key) }))
-  on('store.set', (_, e) => (disk.set(e.key, e.value), { value: undefined }))
-  on('store.delete', (_, e) => (disk.delete(e.key), { value: undefined }))
+  on('store.set', (_, e) => (guard(), disk.set(e.key, e.value), { value: undefined }))
+  on('store.delete', (_, e) => (guard(), disk.delete(e.key), { value: undefined }))
   on('store.keys', () => ({ value: [...disk.keys()] }))
   on('command.register', (_, e) => ({ value: { command: e.name } }))
   on('tool.register', (_, e) => ({ value: { tool: `mcp__pinboard__${e.name}` } }))
   on('ui.open', () => ({ value: { isPlaced: true } }))
   on('ui.panes', () => ({ value: [] }))
   on('ui.close', () => ({ value: undefined }))
-  on('ui.toast', () => ({ value: undefined }))
+  on('ui.toast', (_, e) => (toasts.push(e.text), { value: undefined }))
   on('session.id', () => ({ value: 's1' }))
   on('session.root', () => ({ value: '/work/shop' }))
   on('session.start', (_, e) => ({ cwd: e.cwd }))
 
-  return disk
+  return { disk, toasts, store }
 }
 
 // Stands for the engine drawing a reply block itself.
@@ -63,7 +68,7 @@ function pinOf(title: string, body: string, pinnedAt = 1) {
 type Saved = { pins: { title: string; body: string }[] }
 
 test('a checklist the model pins opens as a card that can be ticked off, and is saved', async ($, on) => {
-  const disk = engine(on)
+  const { disk } = engine(on)
   await $.session.start(START)
   await $.tool.call({ tool: 'mcp__pinboard__pin', title: 'Tests', markdown: CHECKLIST })
 
@@ -108,7 +113,7 @@ test('one card is open at a time: the newest, until another is picked', async ($
 })
 
 test('/pin project keeps the reply on the project board', async ($, on) => {
-  const disk = engine(on)
+  const { disk } = engine(on)
   on('session.messages', () => ({
     value: [
       { role: 'user', text: 'how do I deploy?', toolUses: [] },
@@ -132,7 +137,7 @@ test('/pin project keeps the reply on the project board', async ($, on) => {
 })
 
 test('a reply pinned without a title gets the small model title', async ($, on) => {
-  const disk = engine(on)
+  const { disk } = engine(on)
   const clock = mock.clock(on)
   on('session.messages', () => ({
     value: [{ role: 'assistant', text: 'Here is what to try.\n\n- [ ] Pay with the test card', toolUses: [] }],
@@ -148,7 +153,7 @@ test('a reply pinned without a title gets the small model title', async ($, on) 
 })
 
 test('both boards come back from disk when the session starts again', async ($, on) => {
-  const disk = engine(on, {
+  const { disk } = engine(on, {
     'session:s1': { pins: [pinOf('Tests', '- [x] Checkout', 2)], updatedAt: Date.now() },
     'project:/work/shop': { pins: [pinOf('Deploy', 'Run the script.', 1)], updatedAt: 1 },
   })
@@ -169,7 +174,7 @@ test('both boards come back from disk when the session starts again', async ($, 
 })
 
 test('a session board untouched for months is dropped at start', async ($, on) => {
-  const disk = engine(on, {
+  const { disk } = engine(on, {
     'session:old': { pins: [pinOf('Old', 'stale')], updatedAt: 0 },
     'session:recent': { pins: [pinOf('Recent', 'fresh')], updatedAt: Date.now() },
   })
@@ -180,7 +185,7 @@ test('a session board untouched for months is dropped at start', async ($, on) =
 })
 
 test('the hover control under a reply block keeps the block and pins it once', async ($, on) => {
-  const disk = engine(on)
+  const { disk } = engine(on)
   engineRow(on)
   await $.session.start(START)
 
@@ -233,4 +238,68 @@ test('an empty board says how to pin', async ($, on) => {
   const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
   expect((await ui.find({ type: 'Text' }))?.text).toBe('Nothing pinned.')
   await ui.unmount()
+})
+
+const pinCall = (title: string, markdown: string, scope?: 'session' | 'project') =>
+  ({ tool: 'mcp__pinboard__pin', title, markdown, scope }) as const
+
+test('nothing changes when the store cannot be written', async ($, on) => {
+  const { disk, toasts, store } = engine(on)
+  on('session.messages', () => ({ value: [{ role: 'assistant', text: 'A reply', toolUses: [] }] }))
+  await $.session.start(START)
+  await $.tool.call(pinCall('Tests', CHECKLIST))
+  const before = JSON.stringify([...disk])
+  store.isBroken = true
+
+  // A command answers the error; the pin is not in the list.
+  const ran = await $.command.run({ command: 'pin', args: 'Other' } as Parameters<typeof $.command.run>[0])
+  expect(ran.text).toContain('could not be saved')
+  const unpinned = await $.command.run({ command: 'unpin', args: 's1' } as Parameters<typeof $.command.run>[0])
+  expect(unpinned.text).toContain('could not be saved')
+
+  // A tool is denied.
+  const denied = await $.tool.call(pinCall('Third', 'text'))
+  expect(denied.deny).toContain('could not be saved')
+
+  // A press shows a toast and the box stays as it was.
+  const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
+  const login = await ui.find({ type: 'Button', text: /\[ \] Log in/ })
+  await ui.press({ key: login?.key ?? '' })
+  expect(toasts.join(' ')).toContain('could not be saved')
+  expect(await ui.find({ type: 'Button', text: /\[ \] Log in/ })).toBeDefined()
+  await ui.unmount()
+
+  store.isBroken = false
+  expect(JSON.stringify([...disk])).toBe(before)
+  const listed = await $.tool.call({ tool: 'mcp__pinboard__list_pins' })
+  expect(String(listed.result)).toContain('- [ ] Log in with a test account')
+  expect(String(listed.result)).not.toContain('Other')
+})
+
+test('a board holds at most 50 pins, and a project board has its own 50', async ($, on) => {
+  engine(on)
+  await $.session.start(START)
+  for (let i = 1; i <= 50; i++) await $.tool.call(pinCall(`Note ${i}`, `text ${i}`))
+
+  const refused = await $.tool.call(pinCall('Note 51', 'text 51'))
+  expect(refused.deny).toContain('already has 50 pins')
+
+  // Pinning the same title again replaces a pin, so it is not a new one.
+  const replaced = await $.tool.call(pinCall('Note 1', 'new text'))
+  expect(String(replaced.result)).toContain('Pinned "Note 1"')
+
+  const project = await $.tool.call(pinCall('Note 51', 'text 51', 'project'))
+  expect(String(project.result)).toContain('project board')
+})
+
+test('a pin holds at most 20,000 characters', async ($, on) => {
+  const { disk } = engine(on)
+  await $.session.start(START)
+
+  const refused = await $.tool.call(pinCall('Big', 'x'.repeat(20_001)))
+  expect(refused.deny).toContain('at most 20,000 characters')
+  expect(disk.get('session:s1')).toBeUndefined()
+
+  const fits = await $.tool.call(pinCall('Fits', 'x'.repeat(20_000)))
+  expect(String(fits.result)).toContain('Pinned "Fits"')
 })

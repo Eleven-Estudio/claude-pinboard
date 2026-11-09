@@ -1,7 +1,7 @@
 import type { On } from 'claude-code'
 
 import type { PinScope } from '../../types'
-import { addPin } from '../lib/board'
+import { addPin, failure } from '../lib/board'
 
 // A pin control under each block of Claude's reply, shown only while the
 // pointer is over the block. Absolutely placed, so showing it moves no row;
@@ -14,8 +14,12 @@ export function hookReplyControl(on: On): void {
     if (e.surface !== 'terminal' && e.surface !== 'desktop') return row
     const { Box, Text, Button } = $.ui.resolve(e)
     const pinAs = async (scope: PinScope) => {
-      const { title } = await addPin($, { scope, body: text })
-      $.ui.toast(`Pinned "${title}" to the ${scope} board.`)
+      try {
+        const { title } = await addPin($, { scope, body: text })
+        $.ui.toast(`Pinned "${title}" to the ${scope} board.`)
+      } catch (error) {
+        $.ui.toast(failure(error))
+      }
     }
 
     return (

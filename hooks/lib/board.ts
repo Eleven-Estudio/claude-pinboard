@@ -9,11 +9,21 @@ export const PANE = 'pinboard'
 const TITLE = 'Pinned'
 // Appended to a pin's confirmation when the pane has no room yet.
 export const WAITING = ' The pane is waiting for a wider terminal; the person can run /pins to show it.'
+export const MAX_PINS_PER_BOARD = 50
+export const MAX_BODY_CHARS = 20_000
 // Session boards nobody touched in this long are dropped from the store at
 // start, so it never fills up. Project boards are kept until unpinned.
 const SESSION_TTL_MS = 90 * 24 * 60 * 60 * 1000
 
 type Saved = { pins: Pin[]; updatedAt: number }
+
+// An error whose message is meant for the person: a limit reached, or a
+// board that could not be written.
+export class BoardError extends Error {}
+
+export function failure(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
+}
 
 // The store keys the pins in $.state were loaded from. A module variable on
 // purpose: a reload resets it, and the next sync reads the store again,
@@ -101,20 +111,47 @@ export async function forgetSession($: EngineInterface): Promise<void> {
   await updatePins($, list => byScope(list, 'project'))
 }
 
-async function persist($: EngineInterface): Promise<void> {
-  const list = await readPins($)
-  await Promise.all([
-    save($, boardKey('session'), byScope(list, 'session')),
-    save($, boardKey('project'), byScope(list, 'project')),
-  ])
+function isSameBoard(before: readonly Pin[], after: readonly Pin[]): boolean {
+  return before.length === after.length && before.every((pin, index) => pin === after[index])
 }
 
+// Writes the boards that changed, one after the other. If a write throws,
+// the boards already written are put back, so the store and $.state agree.
+async function persist($: EngineInterface, current: readonly Pin[], next: readonly Pin[]): Promise<void> {
+  const written: { scope: PinScope; before: readonly Pin[] }[] = []
+  try {
+    for (const scope of ['session', 'project'] as const) {
+      const before = byScope(current, scope)
+      const after = byScope(next, scope)
+      if (isSameBoard(before, after)) continue
+      await save($, boardKey(scope), after)
+      written.push({ scope, before })
+    }
+  } catch (error) {
+    for (const { scope, before } of written) {
+      await save($, boardKey(scope), before).catch(() => undefined)
+    }
+    throw new BoardError(`The pins could not be saved (${failure(error)}). Nothing was changed.`)
+  }
+}
+
+// Changes run one at a time, so two quick presses both land.
+let queue: Promise<unknown> = Promise.resolve()
+
 // Every change goes through here: the right boards loaded, the change made,
-// both boards written to disk.
-export async function mutate($: EngineInterface, change: (list: readonly Pin[]) => Pin[]): Promise<void> {
-  await sync($)
-  await updatePins($, list => change(list))
-  await persist($)
+// the boards written to disk, and only then $.state updated. When the write
+// fails this throws and $.state is left as it was.
+export function mutate($: EngineInterface, change: (list: readonly Pin[]) => Pin[]): Promise<void> {
+  const run = queue.then(async () => {
+    await sync($)
+    const current = await readPins($)
+    const next = change(current)
+    await persist($, current, next)
+    await updatePins($, () => next)
+  })
+  queue = run.catch(() => undefined)
+
+  return run
 }
 
 export type PinRequest = {
@@ -130,6 +167,11 @@ export async function addPin(
   request: PinRequest,
 ): Promise<{ title: string; isPlaced: boolean }> {
   const { scope, body } = request
+  if (body.length > MAX_BODY_CHARS) {
+    throw new BoardError(
+      `A pin holds at most ${MAX_BODY_CHARS.toLocaleString('en-US')} characters; this one has ${body.length.toLocaleString('en-US')}.`,
+    )
+  }
   const title = request.title ?? titleFrom(body)
   let openId = ''
   let isNew = false
@@ -143,6 +185,11 @@ export async function addPin(
     if (same !== undefined) {
       openId = same.id
       return list.map(pin => (pin.id === same.id ? { ...pin, body } : pin))
+    }
+    if (byScope(list, scope).length >= MAX_PINS_PER_BOARD) {
+      throw new BoardError(
+        `The ${scope} board already has ${MAX_PINS_PER_BOARD} pins. Remove one before pinning another.`,
+      )
     }
     openId = newId()
     isNew = true

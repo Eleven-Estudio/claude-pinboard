@@ -1,6 +1,6 @@
 import type { CommandSpec, On } from 'claude-code'
 
-import { PANE, WAITING, addPin, mutate, openPane, sync } from './lib/board'
+import { PANE, WAITING, addPin, failure, mutate, openPane, sync } from './lib/board'
 import { findByLabel, parseScoped, plural } from './lib/labels'
 import { readPins } from './lib/state'
 
@@ -42,9 +42,13 @@ export function hookCommands(on: On): void {
     const { scope = 'session', rest } = parseScoped(e.args ?? '')
     const body = lastReply(await $.session.messages())
     if (body === '') return { text: 'There is no reply from Claude to pin yet.' }
-    const { title, isPlaced } = await addPin($, { scope, body, title: rest || undefined })
+    try {
+      const { title, isPlaced } = await addPin($, { scope, body, title: rest || undefined })
 
-    return { text: `Pinned "${title}" to the ${scope} board.${isPlaced ? '' : WAITING}` }
+      return { text: `Pinned "${title}" to the ${scope} board.${isPlaced ? '' : WAITING}` }
+    } catch (error) {
+      return { text: failure(error) }
+    }
   })
 
   on('command.run', { command: 'pins' }, async $ => {
@@ -63,7 +67,11 @@ export function hookCommands(on: On): void {
 
     if (arg === 'all' || arg === 'session' || arg === 'project') {
       const removed = new Set(list.filter(pin => arg === 'all' || pin.scope === arg).map(pin => pin.id))
-      await mutate($, current => current.filter(pin => !removed.has(pin.id)))
+      try {
+        await mutate($, current => current.filter(pin => !removed.has(pin.id)))
+      } catch (error) {
+        return { text: failure(error) }
+      }
       if ((await readPins($)).length === 0) await $.ui.close({ id: PANE })
 
       return { text: `Removed ${plural(removed.size)}.` }
@@ -74,7 +82,11 @@ export function hookCommands(on: On): void {
       return { text: `Both boards have a pin ${arg}: use s${arg} for the session's or p${arg} for the project's.` }
     }
     if (target === undefined) return { text: `There is no pin ${arg}. ${UNPIN_USAGE}` }
-    await mutate($, current => current.filter(pin => pin.id !== target.id))
+    try {
+      await mutate($, current => current.filter(pin => pin.id !== target.id))
+    } catch (error) {
+      return { text: failure(error) }
+    }
 
     return { text: `Removed "${target.title}".` }
   })

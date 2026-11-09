@@ -70,6 +70,15 @@ then **Add plugin**.
 - **Tools for Claude**: pinboard adds `pin`, `list_pins` and `unpin`. Claude
   reads your pins only when it calls `list_pins`.
 
+## Limits
+
+- At most **50 pins per board** (session and project each have their own).
+- At most **20,000 characters per pin**.
+
+Past either limit, `/pin`, the hover control and Claude's `pin` tool say so and
+pin nothing. A change is written to disk before it shows in the pane: if the
+write fails, nothing changes and you are told why.
+
 ## Requirements
 
 - Claude Code with mods (plugins with a hooks module). Built and tested on
