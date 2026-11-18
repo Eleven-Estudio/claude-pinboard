@@ -4,6 +4,15 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- A **Where the pin buttons show** setting (`pinControls`): `turn` puts
+  `[ pin ]` and `[ pin project ]` at the right end of the turn's closing line
+  (`✻ Worked for 12s`), where they cover no text, pinning the turn's last block;
+  `both` keeps the hover control too. The default, `hover`, changes nothing.
+
 ## [0.6.1] - 2026-11-09
 
 ### Fixed
