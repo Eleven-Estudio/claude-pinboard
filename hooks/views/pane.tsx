@@ -4,22 +4,28 @@ import { progress, segments, toggleTask } from '../lib/checklist'
 import type { Segment } from '../lib/checklist'
 import { jumpTo } from '../lib/jump'
 import { byScope, label } from '../lib/labels'
-import { resolveOpenId } from '../lib/open-pin'
+import { resolveExpanded, resolveOpenId } from '../lib/open-pin'
 import type { Ports } from '../lib/ports'
 import { bodyBelowTitle } from '../lib/title'
 import type { Elements } from './elements'
 
 // What the pane draws: the pins, the project's folder name, the open card.
-export type PaneModel = { list: Pin[]; projectName: string; openId: string }
+// `openId` is the selected card, drawn framed; `expanded`, the cards unfolded.
+// With one card open at a time, they are the same card.
+export type PaneModel = { list: Pin[]; projectName: string; openId: string; expanded: string[] }
 
 export async function paneModel(ports: Ports): Promise<PaneModel> {
   const list = await ports.state.readPins()
   const root = await ports.session.root().catch(() => '')
   const projectName = root.split('/').filter(part => part !== '').pop() ?? ''
-  // One card open at a time: the one picked, else the newest pin.
+  // The card picked, else the newest pin.
   const openId = resolveOpenId(await ports.state.readOpenPin(), list)
+  const expanded =
+    ports.settings.openCards === 'one'
+      ? [openId]
+      : resolveExpanded(await ports.state.readExpandedPins(), openId, list)
 
-  return { list, projectName, openId }
+  return { list, projectName, openId, expanded }
 }
 
 // What a press in the pane does. Each one is a person's input, and a failure
@@ -37,7 +43,7 @@ export function paneActions(ports: Ports): PaneActions {
   const change = (edit: (current: readonly Pin[]) => Pin[]) => mutate(ports, edit).catch(say)
 
   return {
-    toggleOpen: (pin, isOpen) => ports.state.setOpenPin(isOpen ? '' : pin.id).catch(say),
+    toggleOpen: (pin, isOpen) => toggle(ports, pin, isOpen).catch(say),
     remove: pin => change(current => current.filter(one => one.id !== pin.id)),
     tick: (pin, segment) =>
       change(current =>
@@ -52,9 +58,20 @@ export function paneActions(ports: Ports): PaneActions {
   }
 }
 
+// One card open: a press opens it and closes the rest, or closes it. Many: a
+// press selects the card and folds or unfolds it, leaving the others as they are.
+async function toggle(ports: Ports, pin: Pin, isOpen: boolean): Promise<void> {
+  if (ports.settings.openCards === 'one') return ports.state.setOpenPin(isOpen ? '' : pin.id)
+  const list = await ports.state.readPins()
+  const selected = resolveOpenId(await ports.state.readOpenPin(), list)
+  const open = resolveExpanded(await ports.state.readExpandedPins(), selected, list)
+  await ports.state.setOpenPin(pin.id)
+  await ports.state.setExpandedPins(isOpen ? open.filter(id => id !== pin.id) : [...open, pin.id])
+}
+
 export function drawPane(ui: Elements, model: PaneModel, actions: PaneActions) {
   const { Box, Text, Button, Markdown } = ui
-  const { list, projectName, openId } = model
+  const { list, projectName, openId, expanded } = model
 
   if (list.length === 0) {
     return (
@@ -75,12 +92,13 @@ export function drawPane(ui: Elements, model: PaneModel, actions: PaneActions) {
 
   const drawPin = (pin: Pin, index: number) => {
     const count = progress(pin.body)
-    const isOpen = pin.id === openId
+    const isOpen = expanded.includes(pin.id)
+    const isSelected = pin.id === openId
     const header = (
       <Box flexDirection="row" justifyContent="space-between">
         <Button key={`hd:${pin.id}`} plain onPress={() => actions.toggleOpen(pin, isOpen)}>
           {isOpen ? '▾ ' : '▸ '}
-          <Text bold={isOpen}>
+          <Text bold={isSelected}>
             {label(pin.scope, index)} · {pin.title}
           </Text>
           {count === '' ? '' : <Text dimColor>  {count}</Text>}
@@ -100,7 +118,14 @@ export function drawPane(ui: Elements, model: PaneModel, actions: PaneActions) {
       </Box>
     )
 
-    if (!isOpen) return header
+    if (!isOpen && !isSelected) return header
+    if (!isOpen) {
+      return (
+        <Box flexDirection="column" borderStyle="round" borderDimColor paddingX={1}>
+          {header}
+        </Box>
+      )
+    }
 
     return (
       <Box flexDirection="column" borderStyle="round" borderDimColor paddingX={1}>

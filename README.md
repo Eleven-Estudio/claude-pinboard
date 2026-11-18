@@ -64,7 +64,10 @@ version.
   that line, or run `/pins`, to bring the pane back. While it is folded, a new
   pin shows in the line and a toast, and the pane stays closed.
 - Pins are **cards**: one is open at a time, the rest fold to one line with their
-  progress (`▸ S2 · Login tests  2/5`). Click a card's title to open it.
+  progress (`▸ S2 · Login tests  2/5`). Click a card's title to open it. To keep
+  several open, set **How many cards stay open** to `many` in `/config`: each
+  card then folds and unfolds on its own, and the framed one is the card you
+  picked last.
 
 ### Two boards
 

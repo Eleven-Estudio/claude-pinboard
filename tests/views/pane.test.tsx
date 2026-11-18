@@ -150,3 +150,27 @@ test('a dash that cannot close the pane says why and does not fold', async ($, o
   expect(await band.find({ key: 'restore' })).toBeUndefined()
   await band.unmount()
 })
+
+test('many: cards fold and unfold on their own, and the pressed one is selected', { options: { openCards: 'many' } }, async ($, on) => {
+  engine(on)
+  await $.session.start(START)
+  await $.tool.call(pinCall('Login', '- [ ] Log in'))
+  await $.tool.call(pinCall('Checkout', '- [ ] Pay'))
+
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  // A new pin unfolds beside the card that was open.
+  expect(await ui.find({ type: 'Button', text: /\[ \] Log in/ })).toBeDefined()
+  expect(await ui.find({ type: 'Button', text: /\[ \] Pay/ })).toBeDefined()
+
+  const checkout = await ui.find({ type: 'Button', text: /S2 · Checkout/ })
+  await ui.press({ key: checkout?.key ?? '' })
+  expect(await ui.find({ type: 'Button', text: /\[ \] Pay/ })).toBeUndefined()
+  expect(await ui.find({ type: 'Button', text: /\[ \] Log in/ })).toBeDefined()
+
+  const login = await ui.find({ type: 'Button', text: /S1 · Login/ })
+  await ui.press({ key: login?.key ?? '' })
+  expect(await ui.find({ type: 'Button', text: /\[ \] Log in/ })).toBeUndefined()
+  await ui.press({ key: checkout?.key ?? '' })
+  expect(await ui.find({ type: 'Button', text: /\[ \] Pay/ })).toBeDefined()
+  await ui.unmount()
+})

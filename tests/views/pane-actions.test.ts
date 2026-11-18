@@ -35,3 +35,24 @@ test('the card header opens a closed card and closes an open one', async () => {
   await actions.toggleOpen(pin, true)
   expect(fake.openPin).toBe('')
 })
+
+test('many: the header selects the card and folds or unfolds only that one', async () => {
+  const { ports, fake } = fakePorts({ openCards: 'many' })
+  const other = { ...pin, id: 'b', pinnedAt: 2 }
+  fake.pins = [pin, other]
+  const actions = paneActions(ports)
+
+  // Nothing chosen yet: the newest, b, is the open card.
+  await actions.toggleOpen(pin, false)
+  expect(fake.openPin).toBe('a')
+  expect(fake.expandedPins).toEqual(['b', 'a'])
+  await actions.toggleOpen(other, true)
+  expect(fake.openPin).toBe('b')
+  expect(fake.expandedPins).toEqual(['a'])
+})
+
+test('one: the header never writes the unfolded cards', async () => {
+  const { ports, fake } = fakePorts()
+  await paneActions(ports).toggleOpen(pin, false)
+  expect(fake.expandedPins).toBeNull()
+})

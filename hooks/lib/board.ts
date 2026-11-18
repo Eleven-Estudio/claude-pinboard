@@ -1,4 +1,5 @@
 import type { Pin, PinScope } from '../../types'
+import { unfold } from './open-pin'
 import { byScope } from './labels'
 import type { Ports, StoredBoard } from './ports'
 import { requestTitle, titleFrom } from './title'
@@ -268,7 +269,7 @@ export async function addPin(
 
     return [...list, { id: openId, title, body, scope, pinnedAt: Date.now(), source: request.source }]
   })
-  await ports.state.setOpenPin(openId)
+  await unfold(ports, openId, await ports.state.readPins())
   if (isNew && request.title === undefined) suggestTitle(ports, openId, title, body)
 
   // Minimized, a new pin does not bring the pane back: the band shows it. The
