@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 
-import { mutate, startBoards } from '../../hooks/lib/board'
+import { MAX_UNDO, mutate, startBoards } from '../../hooks/lib/board'
 import { removeSelected, selectStep, undoRemoval } from '../../hooks/lib/shortcuts'
 import type { Pin } from '../../types'
 import { fakePorts } from '../fake-ports'
@@ -64,7 +64,7 @@ test('the selected pin is removed, and undo puts it back in its place, selected'
   await undoRemoval(ports)
   expect(disk.get('session:s1')?.pins.map(one => one.id)).toEqual(['s-a', 's-b'])
   expect(fake.openPin).toBe('s-a')
-  expect(fake.removedPins).toEqual([])
+  expect(fake.removals).toEqual([])
 })
 
 test('undo brings back every pin a whole-board removal took', async () => {
@@ -85,4 +85,26 @@ test('with nothing to act on, a toast says so', async () => {
   await removeSelected(ports)
   await undoRemoval(ports)
   expect(toasts).toEqual(['Nothing pinned.', 'No pin is selected.', 'There is no removal to undo.'])
+})
+
+test('undo goes back one removal at a time, and keeps the last ten', async () => {
+  const { ports, fake, disk } = await boards()
+
+  fake.openPin = 's-a'
+  await removeSelected(ports)
+  fake.openPin = 's-b'
+  await removeSelected(ports)
+  expect(disk.get('session:s1')).toBeUndefined()
+
+  await undoRemoval(ports)
+  expect(disk.get('session:s1')?.pins.map(one => one.id)).toEqual(['s-b'])
+  await undoRemoval(ports)
+  expect(disk.get('session:s1')?.pins.map(one => one.id)).toEqual(['s-a', 's-b'])
+
+  for (let i = 0; i < MAX_UNDO + 2; i++) {
+    await mutate(ports, current => [...current, pin(`n-${i}`, 10 + i)])
+    await mutate(ports, current => current.filter(one => one.id !== `n-${i}`))
+  }
+  expect(fake.removals.length).toBe(MAX_UNDO)
+  expect(fake.removals[0]?.[0]?.id).toBe('n-2')
 })

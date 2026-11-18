@@ -24,12 +24,14 @@ const TOOL_LIST = 'mcp__pinboard__list_pins'
 // The values in $.state, named by literals so the engine can list them.
 const pinsRef = { plugin: 'pinboard', key: 'pins' } as const
 const openPinRef = { plugin: 'pinboard', key: 'openPin' } as const
-const removedPinsRef = { plugin: 'pinboard', key: 'removedPins' } as const
+const removalsRef = { plugin: 'pinboard', key: 'removals' } as const
 const isMinimizedRef = { plugin: 'pinboard', key: 'isMinimized' } as const
 
 // Change the tag when Pin's fields change: an earlier version's value
 // outlives a reload and is then read as empty instead of misread.
 const PINS_SHAPE = 'pins-2'
+// The same for the undo stack, which holds pins too.
+const REMOVALS_SHAPE = 'removals-1'
 // A write that keeps losing to others stops here instead of looping forever.
 const MAX_WRITE_TRIES = 20
 
@@ -120,13 +122,13 @@ function portsOf($: EngineInterface): Ports {
       setOpenPin: async id => {
         await $.state.set(openPinRef, id)
       },
-      readRemovedPins: async () => {
-        const held = await $.state.get(removedPinsRef)
+      readRemovals: async () => {
+        const held = await $.state.get(removalsRef)
 
-        return unshape(held.value ?? undefined)
+        return held.value?.shape === REMOVALS_SHAPE ? held.value.value : []
       },
-      setRemovedPins: async list => {
-        await $.state.set(removedPinsRef, { shape: PINS_SHAPE, value: list })
+      setRemovals: async stack => {
+        await $.state.set(removalsRef, { shape: REMOVALS_SHAPE, value: stack })
       },
       readIsMinimized: async () => {
         const held = await $.state.get(isMinimizedRef)

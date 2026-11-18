@@ -18,6 +18,8 @@ export function paneNote(pin: { isPlaced: boolean; isMinimized: boolean }): stri
 }
 export const MAX_PINS_PER_BOARD = 50
 export const MAX_BODY_CHARS = 20_000
+// How many removals undo can bring back, newest first.
+export const MAX_UNDO = 10
 // Session boards nobody touched in this long are dropped from the store at
 // start, so it never fills up. Project boards are kept until unpinned.
 const SESSION_TTL_MS = 90 * 24 * 60 * 60 * 1000
@@ -158,7 +160,7 @@ export function forgetSession(ports: Ports): Promise<void> {
     loaded = { session: '', project: '' }
     await ports.state.updatePins(list => byScope(list, 'project'))
     // An undo would bring the old session's pins into the new one.
-    await ports.state.setRemovedPins([])
+    await ports.state.setRemovals([])
     // The next session starts with the pane unfolded.
     await ports.state.setIsMinimized(false)
   })
@@ -210,7 +212,10 @@ export function mutate(ports: Ports, change: (list: readonly Pin[]) => Pin[]): P
     await ports.state.updatePins(() => next)
     // What a change took away, kept so it can be undone.
     const removed = current.filter(pin => !next.some(one => one.id === pin.id))
-    if (removed.length > 0) await ports.state.setRemovedPins(removed)
+    if (removed.length > 0) {
+      const stack = await ports.state.readRemovals()
+      await ports.state.setRemovals([...stack, removed].slice(-MAX_UNDO))
+    }
     await closePaneWhenEmpty(ports)
   })
 }

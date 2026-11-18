@@ -42,7 +42,7 @@ export const commandSpecs: CommandSpec[] = [
   },
   {
     name: 'unpin-undo',
-    description: 'Bring back the pins the last removal took',
+    description: 'Bring back the pins the last removal took; again for the one before, up to ten',
     immediate: true,
   },
 ]

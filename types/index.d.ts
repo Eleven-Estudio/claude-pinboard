@@ -18,9 +18,10 @@ declare module 'claude-code' {
   interface PluginState {
     // openPin: the one card shown open; null until the person picks one (the
     // newest pin is open then), '' when they closed every card.
-    // removedPins: the pins the last removal took, so it can be undone.
+    // removals: what the last removals took (at most 10, oldest first), so
+    // they can be undone one by one.
     // isMinimized: the pane is folded to a one-line band above the prompt. It
     // belongs to the session: a new one, and a /clear or resume, start unfolded.
-    pinboard: { pins: Shaped<Pin[]>; openPin: string | null; removedPins: Shaped<Pin[]> | null; isMinimized: boolean }
+    pinboard: { pins: Shaped<Pin[]>; openPin: string | null; removals: Shaped<Pin[][]> | null; isMinimized: boolean }
   }
 }

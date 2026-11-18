@@ -10,7 +10,7 @@ All notable changes to this project are documented here. The format follows
 
 - Four commands meant for a key: `/pin-next` and `/pin-prev` move the selection
   between cards, `/unpin-selected` removes the selected pin, and `/unpin-undo`
-  brings back what the last removal took. They say nothing in the chat; a toast
+  brings back what the last removal took, then the one before, up to ten. They say nothing in the chat; a toast
   tells you when there is nothing to act on.
 
 ## [0.6.1] - 2026-11-09

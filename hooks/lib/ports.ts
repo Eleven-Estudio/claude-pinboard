@@ -49,9 +49,10 @@ export interface Ports {
     updatePins(change: (list: readonly Pin[]) => Pin[]): Promise<void>
     readOpenPin(): Promise<string | null>
     setOpenPin(id: string): Promise<void>
-    // The pins the last removal took, for undo; empty when there is none.
-    readRemovedPins(): Promise<Pin[]>
-    setRemovedPins(list: Pin[]): Promise<void>
+    // What the last removals took, oldest first, for undo; each entry is the
+    // pins one change removed. Empty when there is nothing to undo.
+    readRemovals(): Promise<Pin[][]>
+    setRemovals(stack: Pin[][]): Promise<void>
     readIsMinimized(): Promise<boolean>
     setIsMinimized(value: boolean): Promise<void>
   }

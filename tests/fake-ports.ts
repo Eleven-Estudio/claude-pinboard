@@ -17,7 +17,7 @@ export function fakePorts(
   const fake = {
     pins: [] as Pin[],
     openPin: null as string | null,
-    removedPins: [] as Pin[],
+    removals: [] as Pin[][],
     isMinimized: false,
     messages: [] as { role: string; text: string }[],
     scrollResult: {} as UiScrollResult,
@@ -100,9 +100,9 @@ export function fakePorts(
       setOpenPin: async id => {
         fake.openPin = id
       },
-      readRemovedPins: async () => fake.removedPins,
-      setRemovedPins: async list => {
-        fake.removedPins = list
+      readRemovals: async () => fake.removals,
+      setRemovals: async stack => {
+        fake.removals = stack
       },
       readIsMinimized: async () => fake.isMinimized,
       setIsMinimized: async value => {

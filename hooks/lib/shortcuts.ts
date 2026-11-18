@@ -37,9 +37,11 @@ export async function removeSelected(ports: Ports): Promise<void> {
   }
 }
 
-// Puts back the pins of the last removal, in their place, and selects the first.
+// Puts back the pins of the last removal, in their place, and selects the
+// first. Pressed again, it goes on with the one before, up to MAX_UNDO.
 export async function undoRemoval(ports: Ports): Promise<void> {
-  const removed = await ports.state.readRemovedPins()
+  const stack = await ports.state.readRemovals()
+  const removed = stack.at(-1) ?? []
   if (removed.length === 0) return ports.ui.toast('There is no removal to undo.')
   try {
     await mutate(ports, current => {
@@ -47,7 +49,8 @@ export async function undoRemoval(ports: Ports): Promise<void> {
 
       return [...current, ...back].sort((a, b) => a.pinnedAt - b.pinnedAt)
     })
-    await ports.state.setRemovedPins([])
+    // mutate stacked nothing (it only adds), so this drops just the undone entry.
+    await ports.state.setRemovals((await ports.state.readRemovals()).slice(0, -1))
     await ports.state.setOpenPin(removed[0]?.id ?? '')
     if (!(await ports.state.readIsMinimized()) && !(await isPaneUp(ports))) await openPane(ports)
   } catch (error) {
