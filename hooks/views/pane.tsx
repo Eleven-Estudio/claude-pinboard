@@ -103,7 +103,7 @@ export function drawPane(ui: Elements, model: PaneModel, actions: PaneActions) {
     if (!isOpen) return header
 
     return (
-      <Box flexDirection="column" borderStyle="round" borderDimColor paddingX={1}>
+      <Box flexDirection="column" borderStyle="round" borderColor="ide" borderDimColor paddingX={1}>
         {header}
         {segments(bodyBelowTitle(pin)).map(segment =>
           segment.kind === 'markdown' ? (

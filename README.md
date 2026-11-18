@@ -85,6 +85,24 @@ version.
 | `/pins` | Fold the pane to a one-line band above the prompt, or show it again |
 | `/unpin s2` · `/unpin p1` | Remove one pin |
 | `/unpin session` · `/unpin project` · `/unpin all` | Clear a board, or both |
+| `/pin-next` · `/pin-prev` | Select the next or previous card, wrapping at the ends |
+| `/unpin-selected` | Remove the selected card's pin |
+| `/unpin-undo` | Bring back what the last removal took (one pin, or a whole board); again for the one before, up to ten |
+
+The last four say nothing in the chat, so they fit on a key. Bind them in
+`~/.claude/keybindings.json`, for example:
+
+```json
+{
+  "context": "Chat",
+  "bindings": {
+    "ctrl+shift+down": "command:pin-next",
+    "ctrl+shift+up": "command:pin-prev",
+    "ctrl+shift+delete": "command:unpin-selected",
+    "ctrl+shift+backspace": "command:unpin-undo"
+  }
+}
+```
 
 ## What it stores and sends
 

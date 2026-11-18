@@ -25,6 +25,26 @@ export const commandSpecs: CommandSpec[] = [
     argumentHint: 's1 | p2 | session | project | all',
     immediate: true,
   },
+  {
+    name: 'pin-next',
+    description: 'Select the next pin in the pane (meant for a key in keybindings.json)',
+    immediate: true,
+  },
+  {
+    name: 'pin-prev',
+    description: 'Select the previous pin in the pane (meant for a key in keybindings.json)',
+    immediate: true,
+  },
+  {
+    name: 'unpin-selected',
+    description: 'Remove the selected pin (meant for a key in keybindings.json)',
+    immediate: true,
+  },
+  {
+    name: 'unpin-undo',
+    description: 'Bring back the pins the last removal took; again for the one before, up to ten',
+    immediate: true,
+  },
 ]
 
 function lastReply(messages: readonly { role: string; text: string }[]): string {
