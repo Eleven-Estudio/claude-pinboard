@@ -5,7 +5,7 @@ import { commandSpecs, runPin, runPins, runUnpin } from './commands'
 import { PANE, forgetSession, startBoards, sync } from './lib/board'
 import { bandLine } from './lib/band'
 import { foldOnClose } from './lib/close'
-import type { Ports } from './lib/ports'
+import type { OpenCards, Ports } from './lib/ports'
 import { rememberReply } from './lib/replies'
 import { listTool, pinTool, toolSpecs, unpinTool } from './tools'
 import type { ToolInput } from './tools'
@@ -23,6 +23,7 @@ const TOOL_LIST = 'mcp__pinboard__list_pins'
 // The values in $.state, named by literals so the engine can list them.
 const pinsRef = { plugin: 'pinboard', key: 'pins' } as const
 const openPinRef = { plugin: 'pinboard', key: 'openPin' } as const
+const expandedPinsRef = { plugin: 'pinboard', key: 'expandedPins' } as const
 const isMinimizedRef = { plugin: 'pinboard', key: 'isMinimized' } as const
 
 // Change the tag when Pin's fields change: an earlier version's value
@@ -52,8 +53,9 @@ async function updateHeld<T>(
   throw new Error('The pane state kept changing; try again.')
 }
 
-function portsOf($: EngineInterface): Ports {
+function portsOf($: EngineInterface, openCards: OpenCards): Ports {
   return {
+    settings: { openCards },
     store: {
       get: key => $.store.get(key),
       set: async (key, value) => {
@@ -118,6 +120,14 @@ function portsOf($: EngineInterface): Ports {
       setOpenPin: async id => {
         await $.state.set(openPinRef, id)
       },
+      readExpandedPins: async () => {
+        const held = await $.state.get(expandedPinsRef)
+
+        return held.value ?? null
+      },
+      setExpandedPins: async ids => {
+        await $.state.set(expandedPinsRef, ids)
+      },
       readIsMinimized: async () => {
         const held = await $.state.get(isMinimizedRef)
 
@@ -130,13 +140,19 @@ function portsOf($: EngineInterface): Ports {
   }
 }
 
-export const register: Register = on => {
+// Set in /config: anything but many keeps one card open at a time.
+function openCardsOf(value: unknown): OpenCards {
+  return value === 'many' ? 'many' : 'one'
+}
+
+export const register: Register = (on, options) => {
+  const openCards = openCardsOf(options.openCards)
   on('session.start', async ($, e, next) => {
     for (const spec of commandSpecs) await $.command.register(spec)
     for (const spec of toolSpecs) await $.tool.register(spec)
 
     try {
-      await startBoards(portsOf($))
+      await startBoards(portsOf($, openCards))
     } catch {
       // The boards load with the first prompt instead.
     }
@@ -148,7 +164,7 @@ export const register: Register = on => {
     // A /clear raises no session.start, so the old session's pins go here.
     if (e.reason === 'clear' || e.reason === 'resume') {
       try {
-        await forgetSession(portsOf($))
+        await forgetSession(portsOf($, openCards))
       } catch {
         // Nothing to keep up: the next sync replaces the list.
       }
@@ -159,7 +175,7 @@ export const register: Register = on => {
 
   on('prompt.submit', async ($, e, next) => {
     try {
-      await sync(portsOf($))
+      await sync(portsOf($, openCards))
     } catch {
       // The pins wait for the next prompt; the prompt goes on.
     }
@@ -167,17 +183,17 @@ export const register: Register = on => {
     return next(e)
   }).catch(($, e, next) => next(e))
 
-  on('command.run', { command: 'pin' }, async ($, e) => ({ text: await runPin(portsOf($), e.args ?? '') }))
+  on('command.run', { command: 'pin' }, async ($, e) => ({ text: await runPin(portsOf($, openCards), e.args ?? '') }))
 
-  on('command.run', { command: 'pins' }, async $ => ({ text: await runPins(portsOf($)) }))
+  on('command.run', { command: 'pins' }, async $ => ({ text: await runPins(portsOf($, openCards)) }))
 
-  on('command.run', { command: 'unpin' }, async ($, e) => ({ text: await runUnpin(portsOf($), e.args ?? '') }))
+  on('command.run', { command: 'unpin' }, async ($, e) => ({ text: await runUnpin(portsOf($, openCards), e.args ?? '') }))
 
-  on('tool.call', { tool: TOOL_PIN }, async ($, e) => pinTool(portsOf($), e as unknown as ToolInput))
+  on('tool.call', { tool: TOOL_PIN }, async ($, e) => pinTool(portsOf($, openCards), e as unknown as ToolInput))
 
-  on('tool.call', { tool: TOOL_LIST }, async $ => listTool(portsOf($)))
+  on('tool.call', { tool: TOOL_LIST }, async $ => listTool(portsOf($, openCards)))
 
-  on('tool.call', { tool: TOOL_UNPIN }, async ($, e) => unpinTool(portsOf($), e as unknown as ToolInput))
+  on('tool.call', { tool: TOOL_UNPIN }, async ($, e) => unpinTool(portsOf($, openCards), e as unknown as ToolInput))
 
   on('ui.render', { component: 'AssistantMessage' }, async ($, e, next) => {
     const row = await next(e)
@@ -185,20 +201,20 @@ export const register: Register = on => {
     if (e.props.isSummary === true || text === '') return row
     rememberReply(e.requestId, text)
     if (e.surface !== 'terminal' && e.surface !== 'desktop') return row
-    const pinAs = pinAction(portsOf($), text, e.requestId)
+    const pinAs = pinAction(portsOf($, openCards), text, e.requestId)
 
     return drawReplyControl($.ui.resolve(e), { row, requestId: e.requestId }, pinAs)
   })
 
   on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e) => {
-    const ports = portsOf($)
+    const ports = portsOf($, openCards)
     const ui = $.ui.resolve(e)
 
     return drawPane(ui, await paneModel(ports), paneActions(ports))
   })
 
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
-    const ports = portsOf($)
+    const ports = portsOf($, openCards)
     const text = e.props.hasSurvey ? undefined : await bandLine(ports, e.props.bodyColumns)
     if (text === undefined) return next(e)
 
@@ -206,7 +222,7 @@ export const register: Register = on => {
   })
 
   on('ui.close', { id: PANE }, async ($, e, next) => {
-    await foldOnClose(portsOf($), e.origin.kind)
+    await foldOnClose(portsOf($, openCards), e.origin.kind)
 
     return next(e)
   }).catch(($, e, next) => next(e))

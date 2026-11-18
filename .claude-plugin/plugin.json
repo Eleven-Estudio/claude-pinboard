@@ -7,5 +7,14 @@
   "repository": "https://github.com/Eleven-Estudio/claude-pinboard",
   "license": "MIT",
   "keywords": ["pin", "notes", "checklist", "side-pane", "mod"],
-  "types": "./types/index.d.ts"
+  "types": "./types/index.d.ts",
+  "userConfig": {
+    "openCards": {
+      "type": "string",
+      "title": "How many cards stay open",
+      "description": "one: opening a card closes the others; many: each card folds and unfolds on its own, and the framed one is the selected card.",
+      "options": ["one", "many"],
+      "default": "one"
+    }
+  }
 }

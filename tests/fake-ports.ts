@@ -1,12 +1,17 @@
 import type { UiScrollArgs, UiScrollResult } from 'claude-code'
 
-import type { Ports, StoredBoard, TitleRequest } from '../hooks/lib/ports'
+import type { OpenCards, Ports, StoredBoard, TitleRequest } from '../hooks/lib/ports'
 import type { Pin } from '../types'
 
 // A `Ports` over memory, for tests that need no engine: the store is a Map,
 // and every call the mod makes is recorded or can be held or made to fail.
 export function fakePorts(
-  options: { sessionId?: string; root?: string; stored?: Record<string, StoredBoard> } = {},
+  options: {
+    sessionId?: string
+    root?: string
+    stored?: Record<string, StoredBoard>
+    openCards?: OpenCards
+  } = {},
 ) {
   const disk = new Map<string, StoredBoard>(Object.entries(options.stored ?? {}))
   const toasts: string[] = []
@@ -17,6 +22,7 @@ export function fakePorts(
   const fake = {
     pins: [] as Pin[],
     openPin: null as string | null,
+    expandedPins: null as string[] | null,
     isMinimized: false,
     messages: [] as { role: string; text: string }[],
     scrollResult: {} as UiScrollResult,
@@ -36,6 +42,7 @@ export function fakePorts(
   }
 
   const ports: Ports = {
+    settings: { openCards: options.openCards ?? 'one' },
     store: {
       get: async key => disk.get(key),
       set: async (key, value) => {
@@ -98,6 +105,10 @@ export function fakePorts(
       readOpenPin: async () => fake.openPin,
       setOpenPin: async id => {
         fake.openPin = id
+      },
+      readExpandedPins: async () => fake.expandedPins,
+      setExpandedPins: async ids => {
+        fake.expandedPins = ids
       },
       readIsMinimized: async () => fake.isMinimized,
       setIsMinimized: async value => {

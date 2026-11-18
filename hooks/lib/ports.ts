@@ -14,10 +14,15 @@ export type TitleRequest = {
   timeoutMs: number
 }
 
+// How many cards the pane shows unfolded: one at a time (the default), or as
+// many as the person opens. Set in /config.
+export type OpenCards = 'one' | 'many'
+
 // Everything the mod asks of the engine, as small closures. Only
 // `register.tsx` touches the engine's `$`; it builds these, and the rest of
 // the mod works through them, so it can be tested with a fake.
 export interface Ports {
+  settings: { openCards: OpenCards }
   store: {
     get(key: string): Promise<unknown>
     set(key: string, value: StoredBoard): Promise<void>
@@ -49,6 +54,8 @@ export interface Ports {
     updatePins(change: (list: readonly Pin[]) => Pin[]): Promise<void>
     readOpenPin(): Promise<string | null>
     setOpenPin(id: string): Promise<void>
+    readExpandedPins(): Promise<string[] | null>
+    setExpandedPins(ids: string[]): Promise<void>
     readIsMinimized(): Promise<boolean>
     setIsMinimized(value: boolean): Promise<void>
   }

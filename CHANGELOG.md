@@ -4,6 +4,14 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- An `openCards` setting in `/config`. `one`, the default, keeps one card open
+  at a time, as before. `many` lets each card fold and unfold on its own; the
+  card you picked last, or the newest pin, is the framed one, open or folded.
+
 ## [0.6.1] - 2026-11-09
 
 ### Fixed
