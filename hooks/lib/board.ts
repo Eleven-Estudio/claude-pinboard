@@ -157,6 +157,8 @@ export function forgetSession(ports: Ports): Promise<void> {
   return enqueue(async () => {
     loaded = { session: '', project: '' }
     await ports.state.updatePins(list => byScope(list, 'project'))
+    // An undo would bring the old session's pins into the new one.
+    await ports.state.setRemovedPins([])
     // The next session starts with the pane unfolded.
     await ports.state.setIsMinimized(false)
   })
@@ -206,6 +208,9 @@ export function mutate(ports: Ports, change: (list: readonly Pin[]) => Pin[]): P
     const next = change(current)
     await persist(ports, current, next)
     await ports.state.updatePins(() => next)
+    // What a change took away, kept so it can be undone.
+    const removed = current.filter(pin => !next.some(one => one.id === pin.id))
+    if (removed.length > 0) await ports.state.setRemovedPins(removed)
     await closePaneWhenEmpty(ports)
   })
 }

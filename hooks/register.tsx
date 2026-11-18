@@ -6,6 +6,7 @@ import { PANE, forgetSession, startBoards, sync } from './lib/board'
 import { bandLine } from './lib/band'
 import { foldOnClose } from './lib/close'
 import type { Ports } from './lib/ports'
+import { removeSelected, selectStep, undoRemoval } from './lib/shortcuts'
 import { rememberReply } from './lib/replies'
 import { listTool, pinTool, toolSpecs, unpinTool } from './tools'
 import type { ToolInput } from './tools'
@@ -23,6 +24,7 @@ const TOOL_LIST = 'mcp__pinboard__list_pins'
 // The values in $.state, named by literals so the engine can list them.
 const pinsRef = { plugin: 'pinboard', key: 'pins' } as const
 const openPinRef = { plugin: 'pinboard', key: 'openPin' } as const
+const removedPinsRef = { plugin: 'pinboard', key: 'removedPins' } as const
 const isMinimizedRef = { plugin: 'pinboard', key: 'isMinimized' } as const
 
 // Change the tag when Pin's fields change: an earlier version's value
@@ -118,6 +120,14 @@ function portsOf($: EngineInterface): Ports {
       setOpenPin: async id => {
         await $.state.set(openPinRef, id)
       },
+      readRemovedPins: async () => {
+        const held = await $.state.get(removedPinsRef)
+
+        return unshape(held.value ?? undefined)
+      },
+      setRemovedPins: async list => {
+        await $.state.set(removedPinsRef, { shape: PINS_SHAPE, value: list })
+      },
       readIsMinimized: async () => {
         const held = await $.state.get(isMinimizedRef)
 
@@ -170,6 +180,26 @@ export const register: Register = on => {
   on('command.run', { command: 'pin' }, async ($, e) => ({ text: await runPin(portsOf($), e.args ?? '') }))
 
   on('command.run', { command: 'pins' }, async $ => ({ text: await runPins(portsOf($)) }))
+
+  on('command.run', { command: 'pin-next' }, async $ => {
+    await selectStep(portsOf($), 1)
+    return {}
+  })
+
+  on('command.run', { command: 'pin-prev' }, async $ => {
+    await selectStep(portsOf($), -1)
+    return {}
+  })
+
+  on('command.run', { command: 'unpin-selected' }, async $ => {
+    await removeSelected(portsOf($))
+    return {}
+  })
+
+  on('command.run', { command: 'unpin-undo' }, async $ => {
+    await undoRemoval(portsOf($))
+    return {}
+  })
 
   on('command.run', { command: 'unpin' }, async ($, e) => ({ text: await runUnpin(portsOf($), e.args ?? '') }))
 

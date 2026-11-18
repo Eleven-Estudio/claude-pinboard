@@ -4,6 +4,15 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- Four commands meant for a key: `/pin-next` and `/pin-prev` move the selection
+  between cards, `/unpin-selected` removes the selected pin, and `/unpin-undo`
+  brings back what the last removal took. They say nothing in the chat; a toast
+  tells you when there is nothing to act on.
+
 ## [0.6.1] - 2026-11-09
 
 ### Fixed
