@@ -212,7 +212,7 @@ export const register: Register = (on, options) => {
       const reply = replyOfLine(e.requestId)
       if (!reply) return row
       const pinAs = pinAction(portsOf($), reply.text, reply.requestId)
-      const line = { lineId: e.requestId, word: e.props.word, durationMs: e.props.durationMs }
+      const line = { lineId: e.requestId, row }
 
       return drawTurnControl($.ui.resolve(e), line, pinAs)
     })

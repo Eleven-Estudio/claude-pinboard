@@ -1,7 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 
 import { resetReplies } from '../../hooks/lib/replies'
-import { duration } from '../../hooks/views/turn-control'
 import { START, type Saved, engine, engineRow } from '../support'
 
 const message = (requestId: string, text: string) =>
@@ -33,7 +32,7 @@ test('turn: the closing line pins the turn last block, and blocks get no hover c
   const answer = await $.ui.mount(message('m-2', '# Steps\n\n- [ ] Pay with the test card'))
   const line = await $.ui.mount(turnLine('t-1'))
 
-  expect((await line.find({ type: 'Text', text: /Worked for 12s/ }))?.text).toContain('Worked for 12s')
+  expect((await line.find({ type: 'Text', text: /engine row/ }))?.text).toBe('engine row')
   await line.press({ key: 'tpin:t-1' })
   await line.unmount()
   await narration.unmount()
@@ -82,10 +81,4 @@ test('both: the hover control and the turn line', { options: { pinControls: 'bot
   expect(await line.find({ key: 'tpinp:t-4' })).toBeDefined()
   await line.unmount()
   await answer.unmount()
-})
-
-test('the duration reads as the engine line does', async () => {
-  expect(duration(3_000)).toBe('3s')
-  expect(duration(64_000)).toBe('1m 4s')
-  expect(duration(3_720_000)).toBe('1h 2m')
 })

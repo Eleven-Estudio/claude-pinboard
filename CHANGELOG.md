@@ -10,7 +10,7 @@ All notable changes to this project are documented here. The format follows
 
 - A **Where the pin buttons show** setting (`pinControls`): `turn` puts
   `[ pin ]` and `[ pin project ]` at the right end of the turn's closing line
-  (`✻ Worked for 12s`), where they cover no text, pinning the turn's last block;
+  (`✻ Worked for 12s`), laid over the engine's line rather than redrawing it, pinning the turn's last block;
   `both` keeps the hover control too. The default, `hover`, changes nothing.
 
 ## [0.6.1] - 2026-11-09
