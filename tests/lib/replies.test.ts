@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 
-import { findReplySource, rememberReply, resetReplies } from '../../hooks/lib/replies'
+import { findReplySource, rememberReply, replyOfLine, resetReplies } from '../../hooks/lib/replies'
 
 test('the most recent instance with the same text is the source', async () => {
   resetReplies()
@@ -39,4 +39,26 @@ test('a short block matches only a reply that is exactly it', async () => {
 
   expect(findReplySource('Done.')).toBe('short')
   expect(findReplySource('Everything is fine. Done. Nothing else.')).toBeUndefined()
+})
+
+test('a turn line keeps the block drawn before it, even once newer blocks are drawn', async () => {
+  resetReplies()
+  expect(replyOfLine('line-0')).toBeUndefined()
+  rememberReply('a1', 'Narration between tools')
+  rememberReply('a2', 'The answer of the first turn')
+
+  expect(replyOfLine('line-1')?.requestId).toBe('a2')
+
+  rememberReply('b1', 'The answer of the second turn')
+  expect(replyOfLine('line-1')?.requestId).toBe('a2')
+  expect(replyOfLine('line-2')?.requestId).toBe('b1')
+})
+
+test('redrawing an old block does not make it the one a new turn line pins', async () => {
+  resetReplies()
+  rememberReply('a1', 'The answer of the first turn')
+  rememberReply('b1', 'The answer of the second turn')
+  rememberReply('a1', 'The answer of the first turn')
+
+  expect(replyOfLine('line-2')?.requestId).toBe('b1')
 })

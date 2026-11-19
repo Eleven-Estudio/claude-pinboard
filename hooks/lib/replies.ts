@@ -4,12 +4,21 @@
 // $.state); a reload forgets it and a pin made then has no source.
 const MAX_REPLIES = 200
 const seen = new Map<string, string>()
+// The newest block drawn for the first time: when a turn's closing line is
+// first drawn, the turn's last block, its answer. A redrawn old block (a
+// scroll, a resize) does not move it.
+let newest: { requestId: string; text: string } | undefined
 
 export function rememberReply(requestId: string, text: string): void {
   // Drawing the same instance again keeps its place in the order.
-  if (!seen.has(requestId) && seen.size >= MAX_REPLIES) {
-    const oldest = seen.keys().next().value
-    if (oldest !== undefined) seen.delete(oldest)
+  if (!seen.has(requestId)) {
+    if (seen.size >= MAX_REPLIES) {
+      const oldest = seen.keys().next().value
+      if (oldest !== undefined) seen.delete(oldest)
+    }
+    newest = { requestId, text }
+  } else if (newest?.requestId === requestId) {
+    newest = { requestId, text }
   }
   seen.set(requestId, text)
 }
@@ -38,7 +47,28 @@ export function findReplySource(text: string): string | undefined {
   return found
 }
 
+// Each turn line keeps the block it was first drawn after, so redrawing an
+// old line still pins that turn's block and not the newest one.
+const MAX_LINES = 200
+const ofLine = new Map<string, { requestId: string; text: string }>()
+
+export function replyOfLine(lineId: string): { requestId: string; text: string } | undefined {
+  const kept = ofLine.get(lineId)
+  if (kept) return kept
+  const reply = newest
+  if (!reply) return undefined
+  if (ofLine.size >= MAX_LINES) {
+    const oldest = ofLine.keys().next().value
+    if (oldest !== undefined) ofLine.delete(oldest)
+  }
+  ofLine.set(lineId, reply)
+
+  return reply
+}
+
 // For tests: module state outlives a test file's engine.
 export function resetReplies(): void {
   seen.clear()
+  ofLine.clear()
+  newest = undefined
 }

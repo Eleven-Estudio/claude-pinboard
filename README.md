@@ -53,6 +53,10 @@ version.
 - **`/pin`** pins Claude's last reply. Give it a title with `/pin Login tests`.
 - **Hover** over any block of a reply and click `pin` (fullscreen terminal or
   desktop app). The control is drawn over the block, so nothing moves.
+- Or set **Where the pin buttons show** (`pinControls`) in `/config` to `turn`:
+  `[ pin ]` and `[ pin project ]` then sit at the right end of the turn's closing
+  line (`✻ Worked for 12s`), always shown and laid over the engine's own line, so
+  what it writes there stays, and pin the turn's last block. `both` keeps the two; `hover` is the default.
 - **Ask Claude**: "pin the steps I have to test". Claude can also read your pins
   back, so "what's left to test?" works after a detour.
 - Lines written `- [ ] item` become **checkboxes** you tick in the pane.
@@ -120,7 +124,8 @@ title above, goes through your own Claude Code session.
 | `ui.render` `Pane` | Draws the pane and handles ticks, folds, the `x` and the `↑` that scrolls the transcript back to a pin's reply. | Only pinboard's own pane; every other pane passes through unchanged. |
 | `ui.render` `AbovePrompt` | While the pane is minimized, draws one line with the pin count and the open pin. Otherwise leaves the band to the engine. | Draws nothing unless the pane is minimized; every other time the band passes through unchanged. |
 | `ui.close` | When you close the pane, folds it to the band instead of losing it. Never keeps the pane open. | Only pinboard's own pane; every other close, and any close by a plugin or an unload, passes through unchanged. |
-| `ui.render` `AssistantMessage` | Draws the engine's own block, unchanged, and adds the hover pin control over it. | Never changes the reply's text; the block passes through as the engine drew it. |
+| `ui.render` `AssistantMessage` | Draws the engine's own block, unchanged, and adds the hover pin control over it (not with `pinControls` set to `turn`). | Never changes the reply's text; the block passes through as the engine drew it. |
+| `ui.render` `TurnDuration` | Only with `pinControls` set to `turn` or `both`: lays the pin buttons over the right end of the engine's own closing line, which it leaves as drawn. | A line that says more (agents still running) or the expanded transcript's passes through as the engine drew it. Not hooked at all with the default `hover`. |
 
 ## Limits
 

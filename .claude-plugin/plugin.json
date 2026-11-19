@@ -7,5 +7,14 @@
   "repository": "https://github.com/Eleven-Estudio/claude-pinboard",
   "license": "MIT",
   "keywords": ["pin", "notes", "checklist", "side-pane", "mod"],
-  "types": "./types/index.d.ts"
+  "types": "./types/index.d.ts",
+  "userConfig": {
+    "pinControls": {
+      "type": "string",
+      "title": "Where the pin buttons show",
+      "description": "hover: under each block while the pointer is over it; turn: on the turn's closing line (Worked for 12s), pinning the turn's last block; both: the two.",
+      "options": ["hover", "turn", "both"],
+      "default": "hover"
+    }
+  }
 }

@@ -6,12 +6,13 @@ import { PANE, forgetSession, startBoards, sync } from './lib/board'
 import { bandLine } from './lib/band'
 import { foldOnClose } from './lib/close'
 import type { Ports } from './lib/ports'
-import { rememberReply } from './lib/replies'
+import { rememberReply, replyOfLine } from './lib/replies'
 import { listTool, pinTool, toolSpecs, unpinTool } from './tools'
 import type { ToolInput } from './tools'
 import { drawBand, restoreAction } from './views/band'
 import { drawPane, paneActions, paneModel } from './views/pane'
 import { drawReplyControl, pinAction } from './views/reply-control'
+import { drawTurnControl } from './views/turn-control'
 
 // This is the only file that holds the engine's `$` and `on`: it declares the
 // hooks, and hands the rest of the mod a `Ports` built from `$`.
@@ -130,7 +131,17 @@ function portsOf($: EngineInterface): Ports {
   }
 }
 
-export const register: Register = on => {
+// Where the pin buttons show: under each block on hover (the default), on the
+// turn's closing line, or both. Set in /config.
+type PinControls = 'hover' | 'turn' | 'both'
+
+function pinControlsOf(value: unknown): PinControls {
+  return value === 'turn' || value === 'both' ? value : 'hover'
+}
+
+export const register: Register = (on, options) => {
+  const controls = pinControlsOf(options.pinControls)
+
   on('session.start', async ($, e, next) => {
     for (const spec of commandSpecs) await $.command.register(spec)
     for (const spec of toolSpecs) await $.tool.register(spec)
@@ -184,11 +195,28 @@ export const register: Register = on => {
     const text = e.props.text.trim()
     if (e.props.isSummary === true || text === '') return row
     rememberReply(e.requestId, text)
+    if (controls === 'turn') return row
     if (e.surface !== 'terminal' && e.surface !== 'desktop') return row
     const pinAs = pinAction(portsOf($), text, e.requestId)
 
     return drawReplyControl($.ui.resolve(e), { row, requestId: e.requestId }, pinAs)
   })
+
+  if (controls !== 'hover') {
+    on('ui.render', { component: 'TurnDuration' }, async ($, e, next) => {
+      const row = await next(e)
+      // The engine's own line when it says more (agents still running) or is
+      // the expanded transcript's.
+      if (e.props.isExpanded === true || e.props.waitingFor) return row
+      if (e.surface !== 'terminal' && e.surface !== 'desktop') return row
+      const reply = replyOfLine(e.requestId)
+      if (!reply) return row
+      const pinAs = pinAction(portsOf($), reply.text, reply.requestId)
+      const line = { lineId: e.requestId, row }
+
+      return drawTurnControl($.ui.resolve(e), line, pinAs)
+    })
+  }
 
   on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e) => {
     const ports = portsOf($)
